@@ -24,6 +24,17 @@ export default function AdminEditLegalPage() {
     retry: false,
   });
 
+  // Show error message if legal page is missing or another error occurs
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto mt-10 p-4 border rounded bg-red-50 text-red-700">
+        <h2 className="text-lg font-bold mb-2">Erreur</h2>
+        <p>{error.message || "Impossible de charger la page légale."}</p>
+        <Link href="/dashboard/legal" className="text-blue-600 hover:underline mt-4 block">← Retour</Link>
+      </div>
+    );
+  }
+
   const [title, setTitle] = useState<string>("");
   const [content, setContent] = useState<string>("");
   const [published, setPublished] = useState<boolean>(false);

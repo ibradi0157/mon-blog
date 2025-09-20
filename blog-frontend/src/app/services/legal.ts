@@ -30,8 +30,15 @@ export async function adminListLegal(): Promise<LegalPage[]> {
 }
 
 export async function adminGetLegal(slug: LegalSlug): Promise<LegalPage> {
-  const { data } = await api.get(`/admin/legal/${slug}`);
-  return data;
+  try {
+    const { data } = await api.get(`/admin/legal/${slug}`);
+    return data;
+  } catch (err: any) {
+    if (err?.response?.status === 404) {
+      throw new Error(`La page légale '${slug}' n'existe pas.`);
+    }
+    throw new Error(err?.message || "Erreur inconnue lors de la récupération de la page légale.");
+  }
 }
 
 export async function adminUpdateLegal(slug: LegalSlug, payload: { title: string; content: string }): Promise<LegalPage> {
