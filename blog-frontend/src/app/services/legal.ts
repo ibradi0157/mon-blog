@@ -14,7 +14,12 @@ export type LegalPage = {
 
 // Public
 export async function getPublicLegal(slug: LegalSlug): Promise<LegalPage> {
-  const { data } = await api.get(`/legal/${slug}`);
+  // 404 is expected when a page is unpublished; suppress error-level logs to avoid noisy overlays in dev
+  const { data } = await api.get(`/legal/${slug}`, {
+    // Custom flags read by api interceptor in lib/api.ts
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...( { _expectedStatuses: [404], _suppressErrorLog: true } as any ),
+  });
   return data;
 }
 

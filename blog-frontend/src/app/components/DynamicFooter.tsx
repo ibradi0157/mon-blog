@@ -1,10 +1,53 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
 import { getPublicFooter, type FooterSection, type FooterLink } from '@/app/services/footer';
+
+// --- Color helpers: compute dark variants if API doesn't provide them ---
+function clamp(n: number, min = 0, max = 255) { return Math.max(min, Math.min(max, n)); }
+function parseColor(input?: string): { r: number; g: number; b: number } | null {
+  if (!input) return null;
+  const s = input.trim();
+  // #RRGGBB or #RGB
+  const hexMatch = s.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hexMatch) {
+    let h = hexMatch[1].toLowerCase();
+    if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    return { r, g, b };
+  }
+  // rgb() or rgba()
+  const rgbMatch = s.match(/^rgba?\(([^)]+)\)$/i);
+  if (rgbMatch) {
+    const parts = rgbMatch[1].split(',').map((p) => p.trim());
+    if (parts.length >= 3) {
+      const r = clamp(Number(parts[0]));
+      const g = clamp(Number(parts[1]));
+      const b = clamp(Number(parts[2]));
+      return { r, g, b };
+    }
+  }
+  return null;
+}
+function toHex({ r, g, b }: { r: number; g: number; b: number }): string {
+  const h = (n: number) => clamp(Math.round(n)).toString(16).padStart(2, '0');
+  return `#${h(r)}${h(g)}${h(b)}`;
+}
+function darken(input?: string, factor = 0.85): string | undefined {
+  const rgb = parseColor(input);
+  if (!rgb) return input;
+  return toHex({ r: rgb.r * factor, g: rgb.g * factor, b: rgb.b * factor });
+}
+function lighten(input?: string, factor = 1.15): string | undefined {
+  const rgb = parseColor(input);
+  if (!rgb) return input;
+  return toHex({ r: rgb.r * factor, g: rgb.g * factor, b: rgb.b * factor });
+}
 
 export function DynamicFooter() {
   const footerQuery = useQuery({
@@ -16,6 +59,21 @@ export function DynamicFooter() {
   });
 
   const footer = footerQuery.data;
+
+  // Prepare CSS variables for both light and dark variants
+  const styleVars = useMemo(() => {
+    if (!footer) return undefined as React.CSSProperties | undefined;
+    const bg = footer.backgroundColor || undefined;
+    const fg = footer.textColor || undefined;
+    const bgDark = (footer as any).backgroundColorDark || darken(bg, 0.6);
+    const fgDark = (footer as any).textColorDark || lighten(fg, 1.4);
+    return {
+      ['--footer-bg' as any]: bg,
+      ['--footer-fg' as any]: fg,
+      ['--footer-bg-dark' as any]: bgDark,
+      ['--footer-fg-dark' as any]: fgDark,
+    } as React.CSSProperties;
+  }, [footer]);
 
   // Show default footer while loading or on error
   if (footerQuery.isLoading || footerQuery.isError || !footer) {
@@ -55,12 +113,10 @@ export function DynamicFooter() {
 
   // Render dynamic footer
   return (
-    <footer 
-      className="border-t border-slate-200 dark:border-slate-700 backdrop-blur-sm"
-      style={{ 
-        backgroundColor: footer.backgroundColor, 
-        color: footer.textColor 
-      }}
+    <footer
+      className="border-t border-slate-200 dark:border-slate-700 backdrop-blur-sm bg-[var(--footer-bg)] text-[var(--footer-fg)] dark:bg-[var(--footer-bg-dark)] dark:text-[var(--footer-fg-dark)]"
+      style={styleVars}
+      data-dynamic-footer="true"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">

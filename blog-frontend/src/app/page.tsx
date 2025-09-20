@@ -86,10 +86,10 @@ export default function Home() {
                     placeholder="Rechercher des articles..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 bg-white/90 backdrop-blur-sm border border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent text-slate-900 placeholder-slate-500"
+                    className="w-full pl-12 pr-4 py-3 bg-white/90 dark:bg-slate-900/80 backdrop-blur-sm border border-white/20 dark:border-slate-700/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
                   />
                 </div>
-                <button className="bg-white text-blue-600 px-6 py-3 rounded-xl font-semibold hover:bg-blue-50 transition-colors flex items-center space-x-2">
+                <button className="px-6 py-3 rounded-xl font-semibold transition-all flex items-center space-x-2 shadow-md shadow-black/10 bg-gradient-to-r from-sky-400 to-indigo-500 text-white hover:shadow-lg hover:brightness-110">
                   <span>Explorer</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
@@ -127,15 +127,15 @@ export default function Home() {
         </div>
 
         {/* Search and Filters */}
-        <div className="mb-8 flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+        <div className="mb-8">
+          <div className="relative flex-1 max-w-2xl mx-auto bg-white/80 dark:bg-slate-900/60 border border-slate-200/70 dark:border-slate-700/70 rounded-xl p-3 shadow-sm">
+            <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
             <input
               type="text"
               placeholder="Rechercher des articles..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
+              className="w-full pl-10 pr-4 py-2 bg-transparent focus:outline-none text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
             />
           </div>
         </div>
@@ -197,9 +197,9 @@ export default function Home() {
               <input
                 type="email"
                 placeholder="Votre adresse email"
-                className="w-full px-4 py-3 bg-white/90 backdrop-blur-sm border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent text-slate-900 placeholder-slate-500"
+                className="w-full px-4 py-3 bg-white/90 dark:bg-slate-900/80 backdrop-blur-sm border border-white/20 dark:border-slate-700/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
               />
-              <button className="bg-white text-blue-600 px-6 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors whitespace-nowrap">
+              <button className="px-6 py-3 rounded-lg font-semibold whitespace-nowrap transition-all shadow-md shadow-black/10 bg-gradient-to-r from-sky-400 to-indigo-500 text-white hover:shadow-lg hover:brightness-110">
                 S'abonner
               </button>
             </div>

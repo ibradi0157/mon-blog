@@ -1,10 +1,12 @@
 import axios from "axios";
-import { logger } from "./logger";
+import { logger, devLog } from "./logger";
 
 // Base API URL configurable via NEXT_PUBLIC_API_BASE_URL; fallback to localhost in all environments
 const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api/v1';
 
 export const api = axios.create({ baseURL, timeout: 20000, withCredentials: true });
+// Helpful in development to verify the API endpoint being used
+devLog('API baseURL', baseURL);
 
 let authToken: string | undefined;
 export function setAuthToken(token?: string) {
@@ -118,14 +120,23 @@ api.interceptors.response.use(
       const startedAt = (cfg as any)._startedAt as number | undefined;
       const rid = (cfg as any)._reqId as string | undefined;
       const duration = startedAt ? Date.now() - startedAt : undefined;
-      const status = err?.response?.status;
-      logger.error('[api:error]', {
+      const status = err?.response?.status as number | undefined;
+      // Support per-request logging controls
+      const expected: number[] = Array.isArray((cfg as any)._expectedStatuses)
+        ? (cfg as any)._expectedStatuses
+        : [];
+      const suppress: boolean = !!(cfg as any)._suppressErrorLog;
+      const isExpected = typeof status === 'number' && expected.includes(status);
+      const log = suppress || isExpected ? logger.debug : logger.error;
+      log('[api:error]', {
         reqId: rid,
         method: (cfg.method || 'GET').toUpperCase(),
         url: cfg.url,
         status,
         durationMs: duration,
         message: err?.message,
+        code: err?.code,
+        isAxiosError: !!err?.isAxiosError,
       });
     } catch {}
     try {
@@ -152,6 +163,26 @@ api.interceptors.response.use(
           msg = typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail);
         }
         if (msg) err.message = msg;
+
+        // Emit a compact preview of the response payload for easier debugging
+        try {
+          let preview: string | undefined;
+          if (typeof data === 'string') {
+            preview = data.length > 500 ? data.slice(0, 500) + '…' : data;
+          } else {
+            const serialized = JSON.stringify(data);
+            preview = serialized.length > 500 ? serialized.slice(0, 500) + '…' : serialized;
+          }
+          const cfg = err?.config || {};
+          const status = err?.response?.status as number | undefined;
+          const expected: number[] = Array.isArray((cfg as any)._expectedStatuses)
+            ? (cfg as any)._expectedStatuses
+            : [];
+          const suppress: boolean = !!(cfg as any)._suppressErrorLog;
+          const isExpected = typeof status === 'number' && expected.includes(status);
+          const log = suppress || isExpected ? logger.debug : logger.error;
+          if (preview) log('[api:error:data]', preview);
+        } catch {}
       }
     } catch (_) {
       // no-op, fall back to default message

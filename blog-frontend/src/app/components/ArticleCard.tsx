@@ -31,7 +31,7 @@ export function ArticleCard({
 
   return (
     <Link href={`/article/${id}`} className="group block">
-      <article className="bg-white dark:bg-slate-800 rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-slate-200 dark:border-slate-700 h-full">
+      <article className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-sm rounded-xl border border-slate-200/70 dark:border-slate-700/60 shadow-sm shadow-black/5 hover:shadow-lg hover:shadow-black/10 transition-transform duration-300 overflow-hidden h-full group-hover:-translate-y-0.5">
         {/* Cover Image */}
         <div className="aspect-video overflow-hidden relative">
           {src ? (
