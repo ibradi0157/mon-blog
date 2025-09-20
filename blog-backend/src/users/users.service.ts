@@ -2,6 +2,7 @@
 import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { User } from './user.entity';
+import { DeletedEmail } from './deleted-email.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { RoleName } from '../roles/roles.constants';
 import { Permissions } from '../roles/permissions';
@@ -19,6 +20,7 @@ export class UsersService {
     @InjectRepository(Role) private roleRepo: Repository<Role>,
     @InjectRepository(Article) private articleRepo: Repository<Article>,
     @InjectRepository(Comment) private commentRepo: Repository<Comment>,
+    @InjectRepository(DeletedEmail) private deletedEmailRepo: Repository<DeletedEmail>,
   ) {}
 
   private async ensureRole(name: RoleName): Promise<Role> {
@@ -222,6 +224,14 @@ export class UsersService {
         throw new ForbiddenException('Vous ne pouvez pas vous supprimer vous-même');
       }
       await cleanupUserContent();
+      
+      // Sauvegarder l'email dans la table des emails supprimés
+      const deletedEmail = this.deletedEmailRepo.create({
+        email: target.email,
+        originalUserId: targetUserId
+      });
+      await this.deletedEmailRepo.save(deletedEmail);
+      
       await this.repo.delete(targetUserId);
       return { success: true, message: 'Utilisateur supprimé' };
     }

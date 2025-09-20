@@ -161,9 +161,21 @@ export default function ArticlePage() {
     setActiveHeading(id);
     const el = document.getElementById(id);
     if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
-    (el as HTMLElement).focus({ preventScroll: true });
-  }, []);
+    
+    // Calculate the precise scroll position accounting for fixed header
+    const elementTop = el.getBoundingClientRect().top + window.scrollY;
+    const offsetPosition = elementTop - scrollOffset;
+    
+    window.scrollTo({
+      top: Math.max(0, offsetPosition),
+      behavior: "smooth"
+    });
+    
+    // Focus after a brief delay to ensure scroll is complete
+    setTimeout(() => {
+      (el as HTMLElement).focus({ preventScroll: true });
+    }, 100);
+  }, [scrollOffset]);
 
   const refreshHeadings = useCallback(() => {
     const root = contentRef.current;

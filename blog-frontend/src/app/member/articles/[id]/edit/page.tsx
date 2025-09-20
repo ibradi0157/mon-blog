@@ -36,14 +36,59 @@ export default function EditArticlePage() {
     return null;
   }
 
-  const articleQ = useQuery({ queryKey: ["article", id], queryFn: () => getArticle(id) });
-  const cats = useQuery({ queryKey: ["categories"], queryFn: () => listCategories() });
-  const statsQ = useQuery({ queryKey: ["article-stats", id], queryFn: () => getArticleStats(id) });
+  const articleQ = useQuery({ 
+    queryKey: ["article", id], 
+    queryFn: () => getArticle(id),
+    retry: 1,
+  });
 
-  const edit = useMemberArticleEdit({ id, article: ((articleQ.data as any)?.data ?? (articleQ.data as any)) });
+  const cats = useQuery({ 
+    queryKey: ["categories"], 
+    queryFn: () => listCategories(),
+    retry: 1,
+  });
+
+  const statsQ = useQuery({ 
+    queryKey: ["article-stats", id], 
+    queryFn: () => getArticleStats(id),
+    retry: 1,
+  });
+
+  // React Query v5: onError callbacks are not part of useQuery options; handle side effects with useEffect
+  useEffect(() => {
+    if (articleQ.isError) {
+      const err = articleQ.error as any;
+      console.error('Failed to fetch article:', err);
+      const status = err?.response?.status ?? err?.status;
+      if (status === 404) {
+        router.replace("/member/articles");
+      }
+    }
+  }, [articleQ.isError, articleQ.error, router]);
+
+  useEffect(() => {
+    if (cats.isError) {
+      console.error('Failed to fetch categories:', cats.error);
+    }
+  }, [cats.isError, cats.error]);
+
+  useEffect(() => {
+    if (statsQ.isError) {
+      console.error('Failed to fetch stats:', statsQ.error);
+    }
+  }, [statsQ.isError, statsQ.error]);
+
+  const article = useMemo(() => {
+    const raw = articleQ.data as any;
+    return raw?.data ?? raw;
+  }, [articleQ.data]);
+
+  const edit = useMemberArticleEdit({ id, article });
+  
   const mDelete = useMutation({
     mutationFn: () => deleteArticle(id),
     onSuccess: () => router.replace("/member/articles"),
+    onError: (error) => console.error('Failed to delete article:', error)
   });
 
   const raw = articleQ.data as any;
@@ -114,6 +159,14 @@ export default function EditArticlePage() {
                 onChange={edit.setContent}
                 readOnly={isPublished}
                 onImageUpload={isPublished ? undefined : edit.onImageUpload}
+                onFileUpload={async (file: File) => {
+                  const form = new FormData();
+                  form.set("file", file);
+                  const resp = await fetch("/api/upload-any", { method: "POST", body: form });
+                  if (!resp.ok) throw new Error("Upload fichier échoué");
+                  const data = await resp.json();
+                  return { url: data.url as string, name: data.name as string, mime: data.mime as string, size: data.size as number };
+                }}
                 className="min-h-[60vh] sm:min-h-[400px]"
                 showWordCount
               />
@@ -188,6 +241,26 @@ export default function EditArticlePage() {
               )}
             </div>
           </aside>
+        </div>
+      )}
+      {/* Mobile sticky actions */}
+      {!isPublished && (
+        <div className="sm:hidden sticky bottom-0 left-0 right-0 -mx-4 px-4 py-3 bg-white/95 dark:bg-slate-900/95 border-t border-slate-200 dark:border-slate-700 backdrop-blur z-10">
+          <div className="flex items-center gap-2">
+            <button
+              className="flex-1 px-4 py-2 rounded border hover:bg-black/5 disabled:opacity-50"
+              onClick={() => router.back()}
+            >
+              Annuler
+            </button>
+            <button
+              className="flex-1 px-4 py-2 rounded bg-blue-600 text-white hover:opacity-90 disabled:opacity-50"
+              disabled={edit.updating}
+              onClick={() => edit.updateNow()}
+            >
+              Enregistrer
+            </button>
+          </div>
         </div>
       )}
     </div>

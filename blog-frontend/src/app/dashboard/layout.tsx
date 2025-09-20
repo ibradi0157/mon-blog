@@ -7,20 +7,24 @@ import {
   LayoutDashboard, 
   FileText, 
   Users, 
-  MessageSquare, 
-  Flag, 
   BarChart3, 
-  Home, 
-  Settings,
-  ChevronLeft,
+  Settings, 
+  LogOut, 
+  Home,
+  Tag,
+  MessageSquare,
+  Flag,
+  Bell,
+  Mail,
   ChevronRight,
+  ChevronLeft,
   User,
   Shield,
-  Bell,
   Search,
   Menu,
   X,
-  Tag
+  Palette,
+  Layers
 } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -35,11 +39,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setMounted(true);
   }, []);
 
-  if (!mounted) {
-    // Render nothing until mounted so the server and client markup stay in sync
-    return null;
-  }
-
   const isAdmin = user?.role === "PRIMARY_ADMIN" || user?.role === "SECONDARY_ADMIN";
 
   useEffect(() => {
@@ -48,6 +47,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       router.replace("/");
     }
   }, [user, router, isAdmin, ready]);
+
+  // Ensure hooks order remains stable across renders while still avoiding hydration mismatch
+  if (!mounted) {
+    // Render nothing until mounted so the server and client markup stay in sync
+    return null;
+  }
 
   if (!ready || !user || !isAdmin) {
     return (
@@ -86,6 +91,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: "/dashboard/articles", label: "Articles", icon: FileText },
       { href: "/dashboard/categories", label: "Catégories", icon: Tag },
       { href: "/dashboard/comments", label: "Commentaires", icon: MessageSquare },
+      { href: "/dashboard/subscriptions", label: "Abonnements", icon: Bell },
+      { href: "/dashboard/email-templates", label: "Templates d'emails", icon: Mail },
       { href: "/dashboard/stats", label: "Statistiques", icon: BarChart3 },
     ];
 
@@ -95,6 +102,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       baseItems.push(
         { href: "/dashboard/users", label: "Utilisateurs", icon: Users },
         { href: "/dashboard/homepage", label: "Page d'accueil", icon: Home },
+        { href: "/dashboard/footer", label: "Pied de page", icon: Layers },
         { href: "/dashboard/legal", label: "Pages légales", icon: FileText },
         { href: "/dashboard/settings", label: "Paramètres", icon: Settings }
       );

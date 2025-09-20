@@ -1,9 +1,10 @@
 import axios from "axios";
+import { logger } from "./logger";
 
 // Base API URL configurable via NEXT_PUBLIC_API_BASE_URL; fallback to localhost in all environments
 const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000/api/v1';
 
-export const api = axios.create({ baseURL, timeout: 20000 });
+export const api = axios.create({ baseURL, timeout: 20000, withCredentials: true });
 
 let authToken: string | undefined;
 export function setAuthToken(token?: string) {
@@ -35,8 +36,39 @@ export function getViewerId(): string | undefined {
   }
 }
 
-api.interceptors.request.use((config) => {
+let csrfToken: string | undefined;
+let csrfBootstrapping: Promise<void> | null = null;
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+function needsCsrf(method?: string) {
+  return method ? !SAFE_METHODS.has(method.toUpperCase()) : false;
+}
+
+async function ensureCsrfToken(): Promise<void> {
+  if (csrfToken) return;
+  if (!csrfBootstrapping) {
+    csrfBootstrapping = (async () => {
+      try {
+        const res = await api.get('/csrf', { withCredentials: true });
+        const hdr = (res.headers as any)?.['x-csrf-token'] || (res.headers as any)?.['X-CSRF-Token'];
+        if (hdr) csrfToken = String(hdr);
+      } finally {
+        csrfBootstrapping = null;
+      }
+    })();
+  }
+  await csrfBootstrapping;
+}
+
+api.interceptors.request.use(async (config) => {
   config.headers = config.headers ?? {};
+  // Always send cookies
+  config.withCredentials = true;
+  // Attach a request id and start time for logging
+  const rid = (typeof crypto !== 'undefined' && (crypto as any).randomUUID)
+    ? (crypto as any).randomUUID()
+    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+  (config as any)._reqId = rid;
+  (config as any)._startedAt = Date.now();
   if (authToken) {
     (config.headers as any)["Authorization"] = `Bearer ${authToken}`;
   }
@@ -45,12 +77,57 @@ api.interceptors.request.use((config) => {
   if (viewerId) {
     (config.headers as any)["X-Viewer-Id"] = viewerId;
   }
+  // CSRF: bootstrap if needed for unsafe methods; avoid recursion for the bootstrap call itself
+  const method = (config.method || 'GET').toUpperCase();
+  const url = String(config.url || '');
+  const isCsrfEndpoint = url.endsWith('/csrf');
+  if (!isCsrfEndpoint && needsCsrf(method)) {
+    if (!csrfToken) {
+      await ensureCsrfToken();
+    }
+    if (csrfToken) {
+      (config.headers as any)["X-CSRF-Token"] = csrfToken;
+    }
+  }
   return config;
 });
 
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    try {
+      const startedAt = (res.config as any)._startedAt as number | undefined;
+      const rid = (res.config as any)._reqId as string | undefined;
+      const duration = startedAt ? Date.now() - startedAt : undefined;
+      logger.debug('[api:response]', {
+        reqId: rid,
+        method: (res.config.method || 'GET').toUpperCase(),
+        url: res.config.url,
+        status: res.status,
+        durationMs: duration,
+      });
+    } catch {}
+    try {
+      const hdr = (res.headers as any)?.['x-csrf-token'] || (res.headers as any)?.['X-CSRF-Token'];
+      if (hdr) csrfToken = String(hdr);
+    } catch {}
+    return res;
+  },
   (err) => {
+    try {
+      const cfg = err?.config || {};
+      const startedAt = (cfg as any)._startedAt as number | undefined;
+      const rid = (cfg as any)._reqId as string | undefined;
+      const duration = startedAt ? Date.now() - startedAt : undefined;
+      const status = err?.response?.status;
+      logger.error('[api:error]', {
+        reqId: rid,
+        method: (cfg.method || 'GET').toUpperCase(),
+        url: cfg.url,
+        status,
+        durationMs: duration,
+        message: err?.message,
+      });
+    } catch {}
     try {
       const data = err?.response?.data;
       // Prefer explicit messages

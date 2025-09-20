@@ -140,13 +140,27 @@ export class AuthController {
   }
 
   @Post('reset-password')
-  resetPassword(@Body() dto: ResetPasswordDto) {
+  async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
   }
 
-  @Get('me')
+  @Post('check-email')
+  async checkEmailAvailability(@Body() body: { email: string }) {
+    if (!body.email) {
+      throw new BadRequestException('Email requis');
+    }
+    const existing = await this.userRepo.findOneBy({ email: body.email });
+    if (existing) {
+      throw new BadRequestException('Cet email est déjà utilisé');
+    }
+    return { available: true, message: 'Email disponible' };
+  }
+
   @UseGuards(JwtAuthGuard)
-  me(@Request() req) {
-    return { success: true, data: req.user };
+  @Get('me')
+  async getMe(@Request() req) {
+    const userId = req.user?.userId;
+    const role = req.user?.role;
+    return { success: true, data: { userId, role } };
   }
 }

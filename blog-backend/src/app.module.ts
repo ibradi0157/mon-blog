@@ -1,5 +1,5 @@
-import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule as BaseThrottlerModule } from '@nestjs/throttler';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
@@ -23,6 +23,15 @@ import { CacheModule as CustomCacheModule } from './common/cache/cache.module';
 import { SecurityModule } from './common/security/security.module';
 import { SeoModule } from './common/seo/seo.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { SiteSettingsModule } from './site-settings/site-settings.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { EmailTemplatesModule } from './email-templates/email-templates.module';
+import { FooterModule } from './footer/footer.module';
+import { UserPreferencesModule } from './user-preferences/user-preferences.module';
+import { CaptchaModule } from './captcha/captcha.module';
+import { CorrelationIdMiddleware } from './common/logging/correlation-id.middleware';
+import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
+import { LoggingInterceptor } from './common/logging/logging.interceptor';
 
 @Module({
   imports: [    
@@ -47,6 +56,10 @@ import { AnalyticsModule } from './analytics/analytics.module';
         schema: 'public',
         autoLoadEntities: true,
         synchronize: config.get<string>('NODE_ENV') !== 'production', // ⚠️ seulement en dev !
+        logging: config.get<string>('NODE_ENV') !== 'production'
+          ? ['query', 'error', 'warn', 'schema', 'migration']
+          : ['error', 'warn'],
+        logger: 'advanced-console',
       }),
     }),
     HealthModule,
@@ -63,11 +76,27 @@ import { AnalyticsModule } from './analytics/analytics.module';
     SecurityModule,
     SeoModule,
     AnalyticsModule,
+    SiteSettingsModule,
+    SubscriptionsModule,
+    EmailTemplatesModule,
+    FooterModule,
+    UserPreferencesModule,
+    CaptchaModule,
     BaseThrottlerModule.forRoot({ throttlers: [{ ttl: 60_000, limit: 100 }] })
    
     // autres modules...
     ],
   controllers: [AppController],
-  providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
+  ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(CorrelationIdMiddleware, RequestLoggingMiddleware)
+      .forRoutes('*');
+  }
+}

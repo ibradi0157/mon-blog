@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 
-type Variant = "primary" | "secondary" | "danger" | "warning" | "outline" | "ghost";
+type Variant = "primary" | "secondary" | "danger" | "warning" | "outline" | "ghost" | "default" | "destructive";
 type Size = "sm" | "md" | "lg";
 
 export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -27,6 +27,8 @@ export function Button({ variant = "secondary", size = "md", className, disabled
     warning: "bg-amber-600 text-white hover:opacity-90",
     outline: "border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700",
     ghost: "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700",
+    default: "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 hover:bg-slate-200 dark:hover:bg-slate-700",
+    destructive: "bg-red-600 text-white hover:bg-red-700",
   };
 
   return (

@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { createArticle, updateArticle, uploadCover, publishArticle, type Article, listCategories, uploadContentImage, uploadGenericContentImage, type Category } from "@/app/services/articles";
+import { createArticle, updateArticle, uploadCover, publishArticle, type Article, listCategories, uploadContentImage, uploadArticleContentImage, type Category, checkTitleAvailability } from "@/app/services/articles";
 import { ModernRichTextEditor } from "@/app/components/ModernRichTextEditor";
 import { useRouter } from "next/navigation";
+import { toAbsoluteImageUrl } from "@/app/lib/api";
 import { toast } from "sonner";
 import { Input } from "@/app/components/ui/Input";
 import { Select } from "@/app/components/ui/Select";
@@ -19,12 +20,35 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
   const [categoryId, setCategoryId] = useState<string | "" | null>("");
   const [isUploading, setIsUploading] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [titleValidation, setTitleValidation] = useState<{ checking: boolean; available?: boolean; message?: string }>({ checking: false });
 
   const TITLE_MIN = 5;
 
   // Draft autosave
   const draftKey = initial?.id ? `draft:article:${initial.id}` : "draft:article:new";
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Title validation avec debounce
+  const validateTitle = useCallback(async (titleToCheck: string) => {
+    if (!titleToCheck || titleToCheck.length < TITLE_MIN) {
+      setTitleValidation({ checking: false });
+      return;
+    }
+
+    // Skip validation for existing articles with unchanged title
+    if (initial?.title && titleToCheck === initial.title) {
+      setTitleValidation({ checking: false, available: true, message: 'Titre actuel' });
+      return;
+    }
+
+    setTitleValidation({ checking: true });
+    try {
+      const result = await checkTitleAvailability(titleToCheck);
+      setTitleValidation({ checking: false, available: result.available, message: result.message });
+    } catch (error) {
+      setTitleValidation({ checking: false, available: false, message: 'Erreur lors de la vérification' });
+    }
+  }, [initial?.title]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -37,7 +61,18 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
     }
   }, [initial?.id]);
 
-  // Restore draft automatically for "new article" flow only
+  // Title validation debounce effect
+  useEffect(() => {
+    if (!isMounted) return;
+    
+    const timer = setTimeout(() => {
+      validateTitle(title);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [title, validateTitle, isMounted]);
+
+  // Load existing draft if not editing an existing article
   useEffect(() => {
     if (!isMounted) return;
     if (initial?.id) return; // do not override existing article with draft automatically
@@ -89,9 +124,10 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
       if (initial?.id) {
         res = await uploadContentImage(initial.id, file);
       } else {
-        res = await uploadGenericContentImage(file);
+        res = await uploadArticleContentImage(file);
       }
-      return { url: res.data.url };
+      const abs = toAbsoluteImageUrl(res.data.url) ?? res.data.url;
+      return { url: abs };
     } catch (error) {
       console.error("Error uploading image:", error);
       toast.error("Erreur lors du téléversement de l'image");
@@ -213,6 +249,10 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
           setError(`Le titre doit contenir au moins ${TITLE_MIN} caractères.`);
           return;
         }
+        if (titleValidation.available === false) {
+          setError("Ce titre n'est pas disponible");
+          return;
+        }
         if (isContentEmpty(content)) {
           setError("Le contenu est requis.");
           return;
@@ -229,17 +269,40 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
       )}
       <div>
         <label className="block text-sm mb-1">Titre</label>
-        <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-          minLength={TITLE_MIN}
-          aria-invalid={titleTooShort}
-          aria-describedby="title-help"
-        />
-        <p id="title-help" className={`mt-1 text-xs ${titleTooShort ? "text-red-600" : "opacity-70"}`}>
-          Minimum {TITLE_MIN} caractères
-        </p>
+        <div className="relative">
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            minLength={TITLE_MIN}
+            aria-invalid={titleTooShort || titleValidation.available === false}
+            aria-describedby="title-help"
+            className={
+              titleValidation.available === false 
+                ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20' 
+                : titleValidation.available === true
+                  ? 'border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/20'
+                  : ''
+            }
+          />
+          {titleValidation.checking && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          )}
+        </div>
+        <div className="mt-1 space-y-1">
+          <p id="title-help" className={`text-xs ${titleTooShort ? "text-red-600" : "opacity-70"}`}>
+            Minimum {TITLE_MIN} caractères
+          </p>
+          {titleValidation.message && !titleValidation.checking && (
+            <p className={`text-xs ${
+              titleValidation.available ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'
+            }`}>
+              {titleValidation.message}
+            </p>
+          )}
+        </div>
       </div>
       <div>
         <label className="block text-sm mb-1">Contenu</label>
@@ -249,6 +312,14 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
               value={content}
               onChange={setContent}
               onImageUpload={handleImageUpload}
+              onFileUpload={async (file: File) => {
+                const form = new FormData();
+                form.set("file", file);
+                const resp = await fetch("/api/upload-any", { method: "POST", body: form });
+                if (!resp.ok) throw new Error("Upload fichier échoué");
+                const data = await resp.json();
+                return { url: data.url as string, name: data.name as string, mime: data.mime as string, size: data.size as number };
+              }}
               placeholder="Écrivez votre article ici..."
               className="min-h-[60vh] sm:min-h-[400px]"
               showWordCount={true}

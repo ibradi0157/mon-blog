@@ -134,12 +134,26 @@ export async function uploadContentImage(id: string, file: File) {
 }
 
 // Upload a content image without article ID (for new/draft before redirect to edit page)
-export async function uploadGenericContentImage(file: File) {
-  const form = new FormData();
-  form.set("file", file);
-  // Let the browser set Content-Type with proper boundary
-  const { data } = await api.post(`/articles/upload-content-image`, form);
-  return data as { success: boolean; data: { url: string; thumbnails?: string[] } };
+export async function uploadArticleContentImage(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const { data } = await api.post("/articles/upload-content-image", formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data as { success: boolean; data: { url: string; thumbnails: string[] } };
+}
+
+export async function checkTitleAvailability(title: string) {
+  try {
+    const response = await api.post('/articles/check-title', { title });
+    return response.data;
+  } catch (error: any) {
+    if (error?.response?.status === 400) {
+      return { available: false, message: error.response.data.message };
+    }
+    throw error;
+  }
 }
 
 export async function suggestPublicArticles(query: string, limit = 5) {
@@ -150,4 +164,13 @@ export async function suggestPublicArticles(query: string, limit = 5) {
   } catch {
     return [] as Article[];
   }
+}
+
+export async function uploadGenericContentImage(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await api.post('/articles/upload/generic', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return data as { success: boolean; data: { url: string } };
 }

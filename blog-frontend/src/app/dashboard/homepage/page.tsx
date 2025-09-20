@@ -9,10 +9,13 @@ import {
   Plus, GripVertical, Trash2, Eye, Monitor, Smartphone, Type, Grid3X3, Code, Space, Megaphone, Upload, Save, Sparkles, Tag
 } from "lucide-react";
 import { getAdminHomepage, updateAdminHomepage, type HomepageConfig } from "@/app/services/homepage";
-import { listAdminArticles, type Article, uploadGenericContentImage, listCategories, type Category } from "@/app/services/articles";
+import { listAdminArticles, type Article, uploadContentImage, listCategories, type Category } from "@/app/services/articles";
 import type { Section, HeroSection, FeaturedGridSection, HtmlSection, SpacerSection, CtaSection, CategoryGridSection } from "@/app/services/homepage";
 import Link from 'next/link';
 import { toAbsoluteImageUrl } from "@/app/lib/api";
+import { IframePreview } from "@/app/components/homepage/IframePreview";
+import { SectionTemplates, type SectionTemplate } from "@/app/components/homepage/SectionTemplates";
+import { CodeEditor } from "@/app/components/homepage/CodeEditor";
 
 const SECTION_ICONS = { hero: Type, featuredGrid: Grid3X3, categoryGrid: Tag, html: Code, spacer: Space, cta: Megaphone } as const;
 const SECTION_LABELS = { hero: "Section Hero", featuredGrid: "Grille d'Articles", categoryGrid: "Grille de Catégories", html: "Contenu HTML", spacer: "Espacement", cta: "Appel à l'Action" } as const;
@@ -21,6 +24,8 @@ export default function HomepageBuilderPage() {
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState<"builder" | "preview">("builder");
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [templateCategory, setTemplateCategory] = useState('all');
 
   const cfgQ = useQuery({
     queryKey: ["admin-homepage"],
@@ -67,6 +72,11 @@ export default function HomepageBuilderPage() {
     setForm((f) => ({ ...f, sections: [...(f.sections || []), defaults[kind]] }));
   };
 
+  const addSectionFromTemplate = (template: SectionTemplate) => {
+    setForm((f) => ({ ...f, sections: [...(f.sections || []), template.section] }));
+    setShowTemplates(false);
+  };
+
   const removeSection = (idx: number) => setForm((f) => ({ ...f, sections: (f.sections || []).filter((_, i) => i !== idx) }));
   const updateSection = (idx: number, changes: Partial<Section>) =>
     setForm((f) => ({ ...f, sections: (f.sections || []).map((s, i) => (i === idx ? { ...s, ...changes } as Section : s)) }));
@@ -84,7 +94,7 @@ export default function HomepageBuilderPage() {
   };
 
   const onUploadHero = async (file: File, idx?: number) => {
-    const res = await uploadGenericContentImage(file);
+    const res = await uploadContentImage('hero-' + Date.now(), file);
     if (idx != null) updateSection(idx, { imageUrl: res.data.url } as Partial<HeroSection>);
   };
 
@@ -135,26 +145,58 @@ export default function HomepageBuilderPage() {
       <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8">
         {activeTab === "builder" ? (
           <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 sm:gap-8">
-            {/* Palette */}
+            {/* Enhanced Palette */}
             <div className="lg:col-span-1 order-2 lg:order-1">
-              <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-6 lg:sticky lg:top-24">
-                <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Ajouter une Section</h3>
-                <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 sm:gap-3">
-                  {(Object.keys(SECTION_ICONS) as Array<keyof typeof SECTION_ICONS>).map((kind) => {
-                    const Icon = SECTION_ICONS[kind];
-                    return (
-                      <button key={kind} onClick={() => addSection(kind)}
-                        className="w-full flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 border rounded-lg border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group">
-                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 dark:bg-slate-700 rounded-lg flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 flex-shrink-0">
-                          <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
-                        </div>
-                        <div className="flex-1 text-left min-w-0">
-                          <p className="font-medium text-xs sm:text-sm truncate">{SECTION_LABELS[kind]}</p>
-                        </div>
-                        <Plus className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 flex-shrink-0" />
-                      </button>
-                    );
-                  })}
+              <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 lg:sticky lg:top-24">
+                {/* Header with Template Toggle */}
+                <div className="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-base sm:text-lg font-semibold">Ajouter une Section</h3>
+                    <button
+                      onClick={() => setShowTemplates(!showTemplates)}
+                      className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
+                        showTemplates 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                      }`}
+                    >
+                      {showTemplates ? 'Templates' : 'Rapide'}
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {showTemplates ? 'Choisissez un template prêt à l\'emploi' : 'Créez des sections personnalisées'}
+                  </p>
+                </div>
+
+                {/* Content */}
+                <div className="p-4 sm:p-6">
+                  {showTemplates ? (
+                    <SectionTemplates 
+                      onSelectTemplate={addSectionFromTemplate}
+                      activeCategory={templateCategory}
+                      onCategoryChange={setTemplateCategory}
+                    />
+                  ) : (
+                    <div className="grid grid-cols-1 gap-2 sm:gap-3">
+                      {(Object.keys(SECTION_ICONS) as Array<keyof typeof SECTION_ICONS>).map((kind) => {
+                        const Icon = SECTION_ICONS[kind];
+                        return (
+                          <button key={kind} onClick={() => addSection(kind)}
+                            className="w-full flex items-center space-x-2 sm:space-x-3 p-3 border rounded-xl border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200 group">
+                            <div className="w-10 h-10 bg-gray-100 dark:bg-slate-700 rounded-lg flex items-center justify-center group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 flex-shrink-0">
+                              <Icon className="w-5 h-5 text-gray-600 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+                            </div>
+                            <div className="flex-1 text-left min-w-0">
+                              <p className="font-medium text-sm truncate text-gray-900 dark:text-gray-100">
+                                {SECTION_LABELS[kind]}
+                              </p>
+                            </div>
+                            <Plus className="w-4 h-4 text-gray-400 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 flex-shrink-0" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -187,14 +229,13 @@ export default function HomepageBuilderPage() {
           </div>
         ) : (
           <div className="flex justify-center">
-            <div className={`${device === "mobile" ? "max-w-sm" : "max-w-4xl"} w-full`}>
-              <div className="bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
-                  {(form.sections || []).map((section, i) => (
-                    <div key={i}>{renderSectionPreview(section, allArticles, categories)}</div>
-                  ))}
-                </div>
-              </div>
+            <div className="w-full max-w-6xl">
+              <IframePreview 
+                config={form}
+                articles={allArticles}
+                categories={categories}
+                device={device}
+              />
             </div>
           </div>
         )}
@@ -597,29 +638,16 @@ function renderAdvancedSectionEditor(s: Section, idx: number, update: (idx: numb
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">Contenu HTML personnalisé</label>
-          <div className="border border-slate-300 dark:border-slate-600 rounded-xl overflow-hidden">
-            <div className="bg-slate-100 dark:bg-slate-700 px-4 py-2 border-b border-slate-300 dark:border-slate-600">
-              <div className="flex items-center space-x-2">
-                <Code className="w-4 h-4 text-slate-600 dark:text-slate-300" />
-                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Éditeur HTML</span>
-              </div>
-            </div>
-            <textarea 
-              className="w-full px-4 py-4 font-mono text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border-0 focus:ring-0 focus:outline-none resize-none" 
-              rows={12}
-              value={sh.html} 
-              onChange={(e) => update(idx, { html: e.target.value } as Partial<HtmlSection>)}
-              placeholder="<div class='text-center p-8'>
+          <CodeEditor
+            value={sh.html}
+            onChange={(value) => update(idx, { html: value } as Partial<HtmlSection>)}
+            language="html"
+            placeholder="<div class='text-center p-8'>
   <h3 class='text-2xl font-bold mb-4'>Votre contenu ici</h3>
   <p>Ajoutez votre HTML personnalisé...</p>
 </div>"
-            />
-          </div>
-          <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-            <p className="text-sm text-blue-800 dark:text-blue-200">
-              <strong>Astuce:</strong> Utilisez les classes Tailwind CSS pour le style. Exemple: <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">text-center p-8 bg-gray-100</code>
-            </p>
-          </div>
+            height="h-80"
+          />
         </div>
       </div>
     );

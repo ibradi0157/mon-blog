@@ -175,6 +175,15 @@ export default function NewArticlePage() {
               const abs = toAbsoluteImageUrl(res.data.url) ?? res.data.url;
               return { url: abs };
             }}
+            onFileUpload={async (file: File) => {
+              const form = new FormData();
+              form.set("file", file);
+              const resp = await fetch("/api/upload-any", { method: "POST", body: form });
+              if (!resp.ok) throw new Error("Upload fichier échoué");
+              const data = await resp.json();
+              // For attachments we can return relative URL; editor will insert a download card
+              return { url: data.url as string, name: data.name as string, mime: data.mime as string, size: data.size as number };
+            }}
             className="min-h-[60vh] sm:min-h-[400px]"
             showWordCount
           />

@@ -1,6 +1,7 @@
 // src/articles/article.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, Index, BeforeInsert, BeforeUpdate } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, Index, BeforeInsert, BeforeUpdate, JoinColumn } from 'typeorm';
 import { Category } from '../categories/category.entity';
+import { User } from '../users/user.entity';
 @Entity()
 export class Article {
   @PrimaryGeneratedColumn('uuid')
@@ -44,8 +45,8 @@ export class Article {
   updatedAt: Date;
   // ...existing code...
   @Index('idx_article_authorId')
-  @Column()
-  authorId: string;
+  @Column({ nullable: true })
+  authorId: string | null;
 
   @Index('idx_article_authorRole')
   @Column()
@@ -53,6 +54,10 @@ export class Article {
 
   @ManyToOne(() => Category, (category) => category.articles, { eager: true, nullable: true, onDelete: 'SET NULL' })
   category: Category | null;
+
+  @ManyToOne(() => User, (user) => user.articles, { eager: true, nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'authorId' })
+  author: User | null;
   // ...existing code...
 
   @BeforeInsert()

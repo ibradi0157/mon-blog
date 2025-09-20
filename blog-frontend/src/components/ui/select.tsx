@@ -1,3 +1,4 @@
+"use client";
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 function cn(...classes: Array<string | undefined | false>) {
@@ -11,11 +12,12 @@ type SelectContextValue = {
   onValueChange?: (v: string) => void;
   registerOption: (opt: Option) => void;
   options: Option[];
+  placeholder?: string;
 };
 
 const SelectContext = createContext<SelectContextValue | null>(null);
 
-export function Select({ value, onValueChange, children }: { value?: string; onValueChange?: (v: string) => void; children: React.ReactNode }) {
+export function Select({ value, onValueChange, placeholder, children }: { value?: string; onValueChange?: (v: string) => void; placeholder?: string; children: React.ReactNode }) {
   const [options, setOptions] = useState<Option[]>([]);
 
   // Reset options on mount to avoid duplicates across hot reloads
@@ -24,11 +26,12 @@ export function Select({ value, onValueChange, children }: { value?: string; onV
   const ctx = useMemo<SelectContextValue>(() => ({
     value,
     onValueChange,
+    placeholder,
     options,
     registerOption: (opt: Option) => {
       setOptions(prev => prev.some(o => o.value === opt.value) ? prev : [...prev, opt]);
     },
-  }), [value, onValueChange, options]);
+  }), [value, onValueChange, placeholder, options]);
 
   return (
     <SelectContext.Provider value={ctx}>
@@ -50,6 +53,9 @@ export function SelectTrigger({ className, children }: { className?: string; chi
         value={value}
         onChange={(e) => onValueChange?.(e.target.value)}
       >
+        {ctx.placeholder && !value && (
+          <option value="" disabled>{ctx.placeholder}</option>
+        )}
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
@@ -59,11 +65,15 @@ export function SelectTrigger({ className, children }: { className?: string; chi
   );
 }
 
-export function SelectValue() {
+export function SelectValue({ placeholder }: { placeholder?: string }) {
   const ctx = useContext<SelectContextValue | null>(SelectContext);
   if (!ctx) return null;
   const current = ctx.options.find(o => o.value === ctx.value);
-  return <span className="sr-only">{current?.label ?? ''}</span>;
+  return (
+    <div>
+      <span>{current?.label ?? placeholder ?? ''}</span>
+    </div>
+  );
 }
 
 export function SelectContent({ children }: { children?: React.ReactNode }) {

@@ -1,16 +1,19 @@
 // src/articles/articles.service.ts
-import { Injectable, ForbiddenException, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In } from 'typeorm';
 import { Article } from './article.entity';
-import { Repository, In, SelectQueryBuilder } from 'typeorm';
-import { RoleName } from '../roles/roles.constants';
-import { ArticleStats } from './article-stats.entity';
-import { Comment } from '../comments/comment.entity';
 import { CreateArticleDto } from './dto/create-article.dto';
+import { ArticleStatsService } from './article-stats.service';
+import { ArticleTitleValidatorService } from './article-title-validator.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import * as fs from 'fs';
 import { join, extname, basename, dirname } from 'path';
 import { ArticleReaction } from './article-reaction.entity';
 import { Category } from '../categories/category.entity';
+import { RoleName } from '../roles/roles.constants';
+import { ArticleStats } from './article-stats.entity';
+import { Comment } from '../comments/comment.entity';
 import { User } from '../users/user.entity';
 import { CacheService, CacheKeys } from '../common/cache/cache.service';
 
@@ -24,6 +27,8 @@ export class ArticlesService {
     @InjectRepository(Category) private categoryRepo: Repository<Category>,
     @InjectRepository(User) private userRepo: Repository<User>,
     private cacheService: CacheService,
+    private titleValidator: ArticleTitleValidatorService,
+    private subscriptionsService: SubscriptionsService,
   ) {}
 
   private async bumpPublicCacheVersion() {
@@ -482,6 +487,12 @@ export class ArticlesService {
   }
 
   async create(dto: CreateArticleDto) {
+    // Validate title uniqueness
+    const titleValidation = await this.titleValidator.validateNewTitle(dto.title);
+    if (!titleValidation.isValid) {
+      throw new BadRequestException(titleValidation.message);
+    }
+
     const article = this.repo.create({
       title: dto.title,
       content: dto.content,
@@ -625,7 +636,17 @@ export class ArticlesService {
     }
 
     article.isPublished = true;
+    article.publishedAt = new Date();
     const saved = await this.repo.save(article);
+    
+    // Queue notifications for subscribers
+    try {
+      await this.subscriptionsService.queueNotifications(saved);
+    } catch (error) {
+      console.error('Failed to queue notifications:', error);
+      // Don't fail the publish operation if notification queueing fails
+    }
+    
     await this.bumpPublicCacheVersion();
     return { success: true, message: 'Article publié', data: saved };
   }

@@ -18,11 +18,15 @@ import { extname } from 'path';
 import * as fs from 'fs';
 import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ArticleTitleValidatorService } from './article-title-validator.service';
 
 @ApiTags('articles')
 @Controller('articles')
 export class ArticlesController {
-  constructor(private service: ArticlesService) {}
+  constructor(
+    private service: ArticlesService,
+    private titleValidator: ArticleTitleValidatorService,
+  ) {}
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -348,5 +352,20 @@ export class ArticlesController {
       console.error('Error in uploadGenericContentImage:', error);
       throw new InternalServerErrorException('Failed to process the uploaded file');
     }
+  }
+
+  @Post('check-title')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleName.PRIMARY_ADMIN, RoleName.SECONDARY_ADMIN, RoleName.MEMBER)
+  @ApiBearerAuth('bearer')
+  async checkTitleAvailability(@Body() body: { title: string }) {
+    if (!body.title) {
+      throw new BadRequestException('Titre requis');
+    }
+    const validation = await this.titleValidator.validateNewTitle(body.title);
+    if (!validation.isValid) {
+      throw new BadRequestException(validation.message);
+    }
+    return { available: true, message: 'Titre disponible' };
   }
 }

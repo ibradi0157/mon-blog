@@ -3,6 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
+import { EmailTemplateService } from './email-template.service';
 
 @Injectable()
 export class MailService {
@@ -11,7 +12,10 @@ export class MailService {
   private provider: 'ethereal' | 'mailjet' | 'json';
   private etherealUser?: string;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    private readonly emailTemplateService: EmailTemplateService
+  ) {
     const explicit = this.config.get<string>('MAIL_PROVIDER');
     const nodeEnv = this.config.get<string>('NODE_ENV') || 'development';
     if (explicit === 'ethereal' || (!explicit && nodeEnv === 'development')) {
@@ -88,15 +92,7 @@ export class MailService {
   }
 
   async sendVerificationCode(email: string, code: string, expiresAt?: Date) {
-    const expText = expiresAt ? `Ce code expire le ${expiresAt.toLocaleString()}.` : 'Ce code expirera bientôt.';
-    const html = `
-      <div style="font-family:Inter,system-ui,Arial,sans-serif;line-height:1.6;">
-        <h2>Vérification de votre adresse email</h2>
-        <p>Utilisez le code ci-dessous pour finaliser votre inscription:</p>
-        <p style="font-size:28px;font-weight:700;letter-spacing:4px;background:#f3f4f6;padding:12px 16px;border-radius:8px;display:inline-block;">${code}</p>
-        <p style="color:#6b7280;">${expText}</p>
-      </div>
-    `;
+    const html = this.emailTemplateService.getVerificationEmail(code, expiresAt);
     await this.sendMail(email, 'Votre code de vérification', html);
   }
 

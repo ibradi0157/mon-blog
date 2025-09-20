@@ -11,19 +11,32 @@ export async function loginApi(email: string, password: string) {
 }
 
 export async function registerApi(email: string, password: string, displayName: string, confirmPassword: string) {
+  // L'intercepteur gère automatiquement le CSRF
   const { data } = await api.post("/auth/register", { email, password, displayName, confirmPassword });
   return data as { success: boolean };
 }
 
-export async function requestEmailCode(email: string) {
-  const { data } = await api.post("/auth/request-email-code", { email });
-  return data as { success: boolean; message?: string };
-}
+export const requestEmailCode = async (email: string) => {
+  const response = await api.post('/auth/request-verification-code', { email });
+  return response.data;
+};
 
-export async function verifyEmail(email: string, code: string) {
-  const { data } = await api.post("/auth/verify-email", { email, code });
-  return data as { success: boolean; message?: string };
-}
+export const verifyEmail = async (email: string, code: string) => {
+  const response = await api.post('/auth/verify-email', { email, code });
+  return response.data;
+};
+
+export const checkEmailAvailability = async (email: string) => {
+  try {
+    const response = await api.post('/auth/check-email', { email });
+    return response.data;
+  } catch (error: any) {
+    if (error?.response?.status === 409) {
+      return { available: false, message: 'Cet email est déjà utilisé' };
+    }
+    throw error;
+  }
+};
 
 export async function forgotPassword(email: string) {
   const { data } = await api.post("/auth/forgot-password", { email });

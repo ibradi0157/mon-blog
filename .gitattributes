@@ -1,0 +1,11 @@
+# Ensure consistent line endings
+* text=auto eol=lf
+
+# Keep Windows-specific files as-is
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Treat lock files as text for nicer diffs
+package-lock.json -diff
+pnpm-lock.yaml -diff
+yarn.lock -diff

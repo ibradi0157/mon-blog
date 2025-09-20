@@ -221,6 +221,26 @@ body {
     color: rgb(148 163 184);
   }
 
+  /* TipTap / Prose content responsiveness */
+  .prose table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+  }
+  .prose thead, .prose tbody, .prose tr {
+    width: 100%;
+  }
+  .prose td, .prose th {
+    white-space: nowrap;
+  }
+  .prose img {
+    max-width: 100%;
+    height: auto;
+  }
+  .prose iframe {
+    max-width: 100%;
+  }
+
   /* Line clamp utilities */
   .line-clamp-2 {
     display: -webkit-box;

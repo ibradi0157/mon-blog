@@ -59,6 +59,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
   // Navigation items
   const nav = [
     { href: "/member", label: "Accueil", icon: Home, exact: true },
+    { href: "/member/dashboard", label: "Tableau de bord", icon: UserIcon },
     { href: "/member/articles", label: "Articles", icon: FileText },
     { href: "/member/comments", label: "Commentaires", icon: MessageSquare },
     { href: "/member/settings", label: "Paramètres", icon: SettingsIcon },

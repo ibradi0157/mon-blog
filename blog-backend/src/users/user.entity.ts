@@ -1,6 +1,7 @@
 // src/users/user.entity.ts
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
 import { Role } from '../roles/role.entity';
+import { Article } from '../articles/article.entity';
 
 @Entity()
 export class User {
@@ -27,6 +28,12 @@ export class User {
 
   @Column({ type: 'uuid', nullable: true })
   resetPasswordTokenId?: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  bio?: string | null;
+
+  @OneToMany(() => Article, (article) => article.author)
+  articles: Article[];
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   resetPasswordTokenHash?: string | null;

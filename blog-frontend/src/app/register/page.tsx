@@ -1,15 +1,60 @@
 "use client";
-import { useState } from "react";
-import { registerApi, requestEmailCode } from "../services/auth";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { registerApi, checkEmailAvailability, requestEmailCode } from "../services/auth";
+import { CaptchaChallenge } from "../components/captcha/CaptchaChallenge";
+import Link from "next/link";
 
 export default function RegisterPage() {
+  // Registration form page – render consistently on server and client
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [showPasswordReqs, setShowPasswordReqs] = useState(false);
+  const [emailValidation, setEmailValidation] = useState<{ checking: boolean; available?: boolean; message?: string }>({ checking: false });
+  const [captchaValidated, setCaptchaValidated] = useState(false);
+  const [captchaChallengeId, setCaptchaChallengeId] = useState<string | null>(null);
   const router = useRouter();
+
+  // Validation des exigences de mot de passe
+  const passwordReqs = {
+    minLength: password.length >= 8,
+    hasUpper: /[A-Z]/.test(password),
+    hasLower: /[a-z]/.test(password),
+    hasNumber: /\d/.test(password),
+    hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+  };
+
+  const allReqsMet = Object.values(passwordReqs).every(Boolean);
+
+  // Email validation avec debounce
+  const validateEmail = useCallback(async (emailToCheck: string) => {
+    if (!emailToCheck || emailToCheck.length < 3) {
+      setEmailValidation({ checking: false });
+      return;
+    }
+
+    setEmailValidation({ checking: true });
+    try {
+      const result = await checkEmailAvailability(emailToCheck);
+      setEmailValidation({ checking: false, available: result.available, message: result.message });
+    } catch (error) {
+      setEmailValidation({ checking: false, available: false, message: 'Erreur lors de la vérification' });
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (email && email.includes('@')) {
+        validateEmail(email);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [email, validateEmail]);
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center safe-px py-12 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
@@ -27,6 +72,14 @@ export default function RegisterPage() {
               setError("Les mots de passe ne correspondent pas");
               return;
             }
+            if (emailValidation.available === false) {
+              setError("Cet email n'est pas disponible");
+              return;
+            }
+            if (!captchaValidated) {
+              setError("Veuillez compléter la vérification anti-robot");
+              return;
+            }
             try {
               await registerApi(email, password, displayName, confirmPassword);
               await requestEmailCode(email);
@@ -36,12 +89,116 @@ export default function RegisterPage() {
             }
           }}
         >
-          <input className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nom d'utilisateur" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-          <input className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Mot de passe" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          <input className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Confirmez le mot de passe" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+          <input 
+            className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+            placeholder="Nom d'utilisateur" 
+            value={displayName} 
+            onChange={(e) => setDisplayName(e.target.value)} 
+            required
+          />
+          <div className="relative">
+            <input 
+              className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                emailValidation.available === false 
+                  ? 'border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/20' 
+                  : emailValidation.available === true
+                    ? 'border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/20'
+                    : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
+              } text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400`}
+              placeholder="Email" 
+              type="email" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              required
+            />
+            {emailValidation.checking && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
+            {emailValidation.message && !emailValidation.checking && (
+              <p className={`text-xs mt-1 ${
+                emailValidation.available ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'
+              }`}>
+                {emailValidation.message}
+              </p>
+            )}
+          </div>
+          <div className="relative">
+            <input 
+              className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+              placeholder="Mot de passe" 
+              type="password" 
+              autoComplete="new-password" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)}
+              onFocus={() => setShowPasswordReqs(true)}
+              onBlur={() => setShowPasswordReqs(false)}
+              required
+            />
+            {showPasswordReqs && password && (
+              <div className="absolute top-full left-0 right-0 mt-1 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-lg z-10">
+                <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">Exigences du mot de passe :</p>
+                <div className="space-y-1 text-xs">
+                  <div className={`flex items-center gap-2 ${passwordReqs.minLength ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                    <span className="w-1 h-1 rounded-full bg-current"></span>
+                    Au moins 8 caractères
+                  </div>
+                  <div className={`flex items-center gap-2 ${passwordReqs.hasUpper ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                    <span className="w-1 h-1 rounded-full bg-current"></span>
+                    Au moins une majuscule (A-Z)
+                  </div>
+                  <div className={`flex items-center gap-2 ${passwordReqs.hasLower ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                    <span className="w-1 h-1 rounded-full bg-current"></span>
+                    Au moins une minuscule (a-z)
+                  </div>
+                  <div className={`flex items-center gap-2 ${passwordReqs.hasNumber ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                    <span className="w-1 h-1 rounded-full bg-current"></span>
+                    Au moins un chiffre (0-9)
+                  </div>
+                  <div className={`flex items-center gap-2 ${passwordReqs.hasSpecial ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                    <span className="w-1 h-1 rounded-full bg-current"></span>
+                    Au moins un caractère spécial (!@#$%^&*)
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          <input 
+            className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+            placeholder="Confirmez le mot de passe" 
+            type="password" 
+            autoComplete="new-password" 
+            value={confirmPassword} 
+            onChange={(e) => setConfirmPassword(e.target.value)} 
+            required
+          />
+          
+          <CaptchaChallenge
+            onValidated={(challengeId) => {
+              setCaptchaValidated(true);
+              setCaptchaChallengeId(challengeId);
+            }}
+            onError={(error) => {
+              setCaptchaValidated(false);
+              setCaptchaChallengeId(null);
+              setError(`Erreur CAPTCHA: ${error}`);
+            }}
+            className="mt-4"
+            required={true}
+          />
+          
           {error && <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>}
-          <button className="w-full bg-green-600 hover:bg-green-700 text-white rounded-lg px-3 py-2 transition-colors">Créer un compte</button>
+          <button 
+            disabled={!allReqsMet || !captchaValidated || emailValidation.available === false}
+            className={`w-full rounded-lg px-3 py-2 transition-colors ${
+              allReqsMet && captchaValidated && emailValidation.available !== false
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+            }`}
+          >
+            Créer un compte
+          </button>
         </form>
       </div>
     </div>

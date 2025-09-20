@@ -1,123 +1,99 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Settings, 
   Save, 
   Globe, 
   Mail, 
-  Shield, 
   Palette, 
-  Database,
-  Bell,
-  Users,
-  FileText,
-  Server
+  Image,
+  Upload,
+  Eye,
+  Share2,
+  Search
 } from "lucide-react";
 import { Input } from "@/app/components/ui/Input";
 import { Button } from "@/app/components/ui/Button";
-
-// Strongly type settings used in this page
-type SettingsShape = {
-  siteName: string;
-  siteDescription: string;
-  siteUrl: string;
-  adminEmail: string;
-  allowRegistration: boolean;
-  requireEmailVerification: boolean;
-  enableComments: boolean;
-  moderateComments: boolean;
-  maxFileSize: number;
-  allowedFileTypes: string[];
-  smtpHost: string;
-  smtpPort: number;
-  smtpUser: string;
-  smtpPassword: string;
-  enableNotifications: boolean;
-  notificationEmail: string;
-};
-
-const defaultSettings: SettingsShape = {
-  siteName: "",
-  siteDescription: "",
-  siteUrl: "",
-  adminEmail: "",
-  allowRegistration: false,
-  requireEmailVerification: false,
-  enableComments: false,
-  moderateComments: false,
-  maxFileSize: 10,
-  allowedFileTypes: [],
-  smtpHost: "",
-  smtpPort: 587,
-  smtpUser: "",
-  smtpPassword: "",
-  enableNotifications: false,
-  notificationEmail: "",
-};
-
-// Mock settings service - you'll need to implement the actual API
-const getSettings = async () => {
-  // This should call your actual settings API
-  return {
-    success: true,
-    data: {
-      siteName: "Mon Blog",
-      siteDescription: "Un blog moderne et professionnel",
-      siteUrl: "https://monblog.com",
-      adminEmail: "admin@monblog.com",
-      allowRegistration: true,
-      requireEmailVerification: true,
-      enableComments: true,
-      moderateComments: false,
-      maxFileSize: 10,
-      allowedFileTypes: ["jpg", "jpeg", "png", "gif", "webp"],
-      smtpHost: "",
-      smtpPort: 587,
-      smtpUser: "",
-      smtpPassword: "",
-      enableNotifications: true,
-      notificationEmail: "notifications@monblog.com"
-    }
-  };
-};
-
-const updateSettings = async (settings: any) => {
-  // This should call your actual settings update API
-  return { success: true, data: settings };
-};
+import { 
+  getAdminSiteSettings, 
+  updateSiteSettings, 
+  uploadSiteLogo, 
+  uploadSiteFavicon,
+  type SiteSettings,
+  type UpdateSiteSettingsPayload
+} from "@/app/services/site-settings";
+import { toast } from "sonner";
+import { toAbsoluteImageUrl } from "@/app/lib/api";
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
   
   const settingsQuery = useQuery({
-    queryKey: ["admin-settings"],
-    queryFn: getSettings,
+    queryKey: ["admin-site-settings"],
+    queryFn: getAdminSiteSettings,
   });
 
-  const [formData, setFormData] = useState<SettingsShape>(settingsQuery.data?.data ?? defaultSettings);
+  const [formData, setFormData] = useState<Partial<SiteSettings>>({});
 
   const updateMutation = useMutation({
-    mutationFn: updateSettings,
+    mutationFn: (payload: UpdateSiteSettingsPayload) => updateSiteSettings(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-site-settings"] });
+      toast.success("Paramètres mis à jour avec succès");
     },
+    onError: (error: any) => {
+      toast.error("Erreur lors de la mise à jour des paramètres");
+      console.error("Settings update error:", error);
+    },
+  });
+
+  const logoUploadMutation = useMutation({
+    mutationFn: uploadSiteLogo,
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-site-settings"] });
+      toast.success("Logo mis à jour avec succès");
+      setFormData(prev => ({ ...prev, logoUrl: result.data.logoUrl }));
+    },
+    onError: () => toast.error("Erreur lors du téléversement du logo"),
+  });
+
+  const faviconUploadMutation = useMutation({
+    mutationFn: uploadSiteFavicon,
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-site-settings"] });
+      toast.success("Favicon mis à jour avec succès");
+      setFormData(prev => ({ ...prev, faviconUrl: result.data.faviconUrl }));
+    },
+    onError: () => toast.error("Erreur lors du téléversement du favicon"),
   });
 
   // Sync state when query resolves
   useEffect(() => {
     if (settingsQuery.data?.data) {
-      setFormData(settingsQuery.data.data as SettingsShape);
+      setFormData(settingsQuery.data.data);
     }
   }, [settingsQuery.data]);
 
-  const handleInputChange = (field: string, value: any) => {
-    setFormData((prev: any) => ({ ...prev, [field]: value }));
+  const handleInputChange = (field: keyof SiteSettings, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateMutation.mutate(formData);
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) logoUploadMutation.mutate(file);
+  };
+
+  const handleFaviconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) faviconUploadMutation.mutate(file);
   };
 
   if (settingsQuery.isLoading) {
@@ -162,18 +138,23 @@ export default function SettingsPage() {
                 type="text"
                 value={formData.siteName || ""}
                 onChange={(e) => handleInputChange("siteName", e.target.value)}
+                placeholder="Mon Blog"
               />
             </div>
             
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                URL du site
+                Thème par défaut
               </label>
-              <Input
-                type="url"
-                value={formData.siteUrl || ""}
-                onChange={(e) => handleInputChange("siteUrl", e.target.value)}
-              />
+              <select
+                value={formData.defaultTheme || "light"}
+                onChange={(e) => handleInputChange("defaultTheme", e.target.value as "light" | "dark" | "auto")}
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+              >
+                <option value="light">Clair</option>
+                <option value="dark">Sombre</option>
+                <option value="auto">Automatique</option>
+              </select>
             </div>
             
             <div className="md:col-span-2">
@@ -184,199 +165,255 @@ export default function SettingsPage() {
                 rows={3}
                 value={formData.siteDescription || ""}
                 onChange={(e) => handleInputChange("siteDescription", e.target.value)}
+                placeholder="Un blog moderne et élégant"
                 className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
               />
             </div>
           </div>
         </div>
 
-        {/* User Management */}
+        {/* Branding */}
         <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
           <div className="flex items-center space-x-2 mb-6">
-            <Users className="w-5 h-5 text-green-600" />
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Gestion des utilisateurs</h2>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Autoriser l'inscription
-                </label>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Permettre aux nouveaux utilisateurs de créer un compte
-                </p>
-              </div>
-              <input
-                type="checkbox"
-                checked={formData.allowRegistration || false}
-                onChange={(e) => handleInputChange("allowRegistration", e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded focus:ring-blue-500"
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Vérification email requise
-                </label>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Les utilisateurs doivent vérifier leur email
-                </p>
-              </div>
-              <input
-                type="checkbox"
-                checked={formData.requireEmailVerification || false}
-                onChange={(e) => handleInputChange("requireEmailVerification", e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded focus:ring-blue-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Content Settings */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-          <div className="flex items-center space-x-2 mb-6">
-            <FileText className="w-5 h-5 text-purple-600" />
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Contenu et commentaires</h2>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Activer les commentaires
-                </label>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Permettre aux utilisateurs de commenter les articles
-                </p>
-              </div>
-              <input
-                type="checkbox"
-                checked={formData.enableComments || false}
-                onChange={(e) => handleInputChange("enableComments", e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded focus:ring-blue-500"
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Modération des commentaires
-                </label>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Les commentaires nécessitent une approbation
-                </p>
-              </div>
-              <input
-                type="checkbox"
-                checked={formData.moderateComments || false}
-                onChange={(e) => handleInputChange("moderateComments", e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded focus:ring-blue-500"
-              />
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Taille max des fichiers (MB)
-                </label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={formData.maxFileSize || 10}
-                  onChange={(e) => handleInputChange("maxFileSize", parseInt((e.target as HTMLInputElement).value))}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                  Types de fichiers autorisés
-                </label>
-                <Input
-                  type="text"
-                  value={formData.allowedFileTypes?.join(", ") || ""}
-                  onChange={(e) => handleInputChange("allowedFileTypes", e.target.value.split(", ").filter(Boolean))}
-                  placeholder="jpg, png, gif, webp"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Email Settings */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-          <div className="flex items-center space-x-2 mb-6">
-            <Mail className="w-5 h-5 text-red-600" />
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Configuration email</h2>
+            <Image className="w-5 h-5 text-green-600" />
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Logo et favicon</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Email administrateur
+                Logo du site
               </label>
-              <Input
-                type="email"
-                value={formData.adminEmail || ""}
-                onChange={(e) => handleInputChange("adminEmail", e.target.value)}
-              />
+              <div className="flex items-center space-x-4">
+                {formData.logoUrl && (
+                  <img 
+                    src={toAbsoluteImageUrl(formData.logoUrl) || formData.logoUrl} 
+                    alt="Logo" 
+                    className="w-16 h-16 object-contain border rounded"
+                  />
+                )}
+                <div>
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => logoInputRef.current?.click()}
+                    disabled={logoUploadMutation.isPending}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {logoUploadMutation.isPending ? "Upload..." : "Changer le logo"}
+                  </Button>
+                </div>
+              </div>
             </div>
             
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Email notifications
+                Favicon
               </label>
-              <Input
-                type="email"
-                value={formData.notificationEmail || ""}
-                onChange={(e) => handleInputChange("notificationEmail", e.target.value)}
-              />
+              <div className="flex items-center space-x-4">
+                {formData.faviconUrl && (
+                  <img 
+                    src={toAbsoluteImageUrl(formData.faviconUrl) || formData.faviconUrl} 
+                    alt="Favicon" 
+                    className="w-8 h-8 object-contain border rounded"
+                  />
+                )}
+                <div>
+                  <input
+                    ref={faviconInputRef}
+                    type="file"
+                    accept="image/*,.ico"
+                    onChange={handleFaviconUpload}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => faviconInputRef.current?.click()}
+                    disabled={faviconUploadMutation.isPending}
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    {faviconUploadMutation.isPending ? "Upload..." : "Changer le favicon"}
+                  </Button>
+                </div>
+              </div>
             </div>
-            
+          </div>
+        </div>
+
+        {/* SEO Settings */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+          <div className="flex items-center space-x-2 mb-6">
+            <Search className="w-5 h-5 text-purple-600" />
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">SEO et métadonnées</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Serveur SMTP
+                Titre meta (60 caractères max)
               </label>
               <Input
                 type="text"
-                value={formData.smtpHost || ""}
-                onChange={(e) => handleInputChange("smtpHost", e.target.value)}
-                placeholder="smtp.gmail.com"
+                maxLength={60}
+                value={formData.metaTitle || ""}
+                onChange={(e) => handleInputChange("metaTitle", e.target.value)}
+                placeholder="Titre pour les moteurs de recherche"
               />
             </div>
             
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Port SMTP
-              </label>
-              <Input
-                type="number"
-                value={formData.smtpPort || 587}
-                onChange={(e) => handleInputChange("smtpPort", parseInt((e.target as HTMLInputElement).value))}
-              />
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Utilisateur SMTP
+                Mots-clés meta
               </label>
               <Input
                 type="text"
-                value={formData.smtpUser || ""}
-                onChange={(e) => handleInputChange("smtpUser", e.target.value)}
+                value={formData.metaKeywords || ""}
+                onChange={(e) => handleInputChange("metaKeywords", e.target.value)}
+                placeholder="blog, article, actualités"
+              />
+            </div>
+            
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Description meta (160 caractères max)
+              </label>
+              <textarea
+                rows={2}
+                maxLength={160}
+                value={formData.metaDescription || ""}
+                onChange={(e) => handleInputChange("metaDescription", e.target.value)}
+                placeholder="Description pour les moteurs de recherche"
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Social & Contact */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+          <div className="flex items-center space-x-2 mb-6">
+            <Share2 className="w-5 h-5 text-red-600" />
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Réseaux sociaux et contact</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Email de contact
+              </label>
+              <Input
+                type="email"
+                value={formData.contactEmail || ""}
+                onChange={(e) => handleInputChange("contactEmail", e.target.value)}
+                placeholder="contact@monblog.com"
               />
             </div>
             
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Mot de passe SMTP
+                Handle Twitter
               </label>
               <Input
-                type="password"
-                value={formData.smtpPassword || ""}
-                onChange={(e) => handleInputChange("smtpPassword", e.target.value)}
+                type="text"
+                value={formData.twitterHandle || ""}
+                onChange={(e) => handleInputChange("twitterHandle", e.target.value)}
+                placeholder="@monblog"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Facebook
+              </label>
+              <Input
+                type="url"
+                value={formData.socialFacebook || ""}
+                onChange={(e) => handleInputChange("socialFacebook", e.target.value)}
+                placeholder="https://facebook.com/monblog"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Twitter
+              </label>
+              <Input
+                type="url"
+                value={formData.socialTwitter || ""}
+                onChange={(e) => handleInputChange("socialTwitter", e.target.value)}
+                placeholder="https://twitter.com/monblog"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Instagram
+              </label>
+              <Input
+                type="url"
+                value={formData.socialInstagram || ""}
+                onChange={(e) => handleInputChange("socialInstagram", e.target.value)}
+                placeholder="https://instagram.com/monblog"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                LinkedIn
+              </label>
+              <Input
+                type="url"
+                value={formData.socialLinkedIn || ""}
+                onChange={(e) => handleInputChange("socialLinkedIn", e.target.value)}
+                placeholder="https://linkedin.com/company/monblog"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+          <div className="flex items-center space-x-2 mb-6">
+            <Eye className="w-5 h-5 text-indigo-600" />
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Pied de page</h2>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                Texte du pied de page
+              </label>
+              <textarea
+                rows={3}
+                value={formData.footerText || ""}
+                onChange={(e) => handleInputChange("footerText", e.target.value)}
+                placeholder=" 2024 Mon Blog. Tous droits réservés."
+                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Afficher "Powered by"
+                </label>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Afficher le crédit dans le pied de page
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={formData.showPoweredBy || false}
+                onChange={(e) => handleInputChange("showPoweredBy", e.target.checked)}
+                className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded focus:ring-blue-500"
               />
             </div>
           </div>
@@ -390,12 +427,6 @@ export default function SettingsPage() {
           </Button>
         </div>
       </form>
-
-      {updateMutation.isSuccess && (
-        <div className="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg">
-          ✓ Paramètres sauvegardés avec succès
-        </div>
-      )}
     </div>
   );
 }
