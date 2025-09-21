@@ -37,11 +37,42 @@ export class AuthController {
     return role;
   }
 
+  // Verify Google reCAPTCHA v2 token if RECAPTCHA_SECRET_KEY is configured
+  private async verifyRecaptchaOrSkip(token: string | undefined, req: any) {
+    const secret = this.config.get<string>('RECAPTCHA_SECRET_KEY') || process.env.RECAPTCHA_SECRET_KEY;
+    if (!secret) return; // skip verification if secret not configured
+    if (!token) {
+      throw new BadRequestException('Captcha requis');
+    }
+    try {
+      const params = new URLSearchParams();
+      params.append('secret', secret);
+      params.append('response', token);
+      const ip = (req?.ip || req?.connection?.remoteAddress || '').toString();
+      if (ip) params.append('remoteip', ip);
+      const resp = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params.toString(),
+      });
+      const data = await resp.json();
+      if (!data?.success) {
+        throw new BadRequestException('Captcha invalide');
+      }
+    } catch (e) {
+      if (e instanceof BadRequestException) throw e;
+      throw new BadRequestException('Erreur de vérification du Captcha');
+    }
+  }
+
   @Post('register')
-  async register(@Body() dto: RegisterDto) {
+  async register(@Body() dto: RegisterDto, @Request() req) {
     if (dto.password !== dto.confirmPassword) {
       throw new BadRequestException('Les mots de passe ne correspondent pas');
     }
+
+    // Verify reCAPTCHA if configured
+    await this.verifyRecaptchaOrSkip(dto.recaptchaToken, req);
 
     // If no users exist yet, create a PRIMARY_ADMIN immediately (verified)
     const usersCount = await this.userRepo.count();
@@ -105,38 +136,13 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() dto: LoginDto, @Request() req) {
-    // In production, if RECAPTCHA_SECRET_KEY is set, verify Google reCAPTCHA v2 token
-    const isProd = process.env.NODE_ENV === 'production';
-    const secret = process.env.RECAPTCHA_SECRET_KEY;
-    if (isProd && secret) {
-      if (!dto.recaptchaToken) {
-        throw new BadRequestException('Captcha requis');
-      }
-      try {
-        const params = new URLSearchParams();
-        params.append('secret', secret);
-        params.append('response', dto.recaptchaToken);
-        const ip = (req?.ip || req?.connection?.remoteAddress || '').toString();
-        if (ip) params.append('remoteip', ip);
-        const resp = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: params.toString(),
-        });
-        const data = await resp.json();
-        if (!data?.success) {
-          throw new BadRequestException('Captcha invalide');
-        }
-      } catch (e) {
-        if (e instanceof BadRequestException) throw e;
-        throw new BadRequestException('Erreur de vérification du Captcha');
-      }
-    }
+    await this.verifyRecaptchaOrSkip(dto.recaptchaToken, req);
     return this.authService.login(dto);
   }
 
   @Post('request-email-code')
-  requestEmailCode(@Body() dto: RequestEmailCodeDto) {
+  async requestEmailCode(@Body() dto: RequestEmailCodeDto, @Request() req) {
+    await this.verifyRecaptchaOrSkip(dto.recaptchaToken, req);
     return this.authService.requestEmailCode(dto);
   }
 
@@ -146,7 +152,8 @@ export class AuthController {
   }
 
   @Post('forgot-password')
-  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+  async forgotPassword(@Body() dto: ForgotPasswordDto, @Request() req) {
+    await this.verifyRecaptchaOrSkip(dto.recaptchaToken, req);
     const user = await this.userRepo.findOne({ where: { email: dto.email } });
     if (!user) return { success: true, message: 'Si un compte existe, un email a été envoyé' };
 

@@ -2,7 +2,7 @@ import { api } from "../lib/api";
 
 export async function loginApi(email: string, password: string, recaptchaToken?: string) {
   const payload: any = { email, password };
-  if (typeof window !== "undefined" && process.env.NODE_ENV === 'production' && recaptchaToken) {
+  if (recaptchaToken) {
     payload.recaptchaToken = recaptchaToken;
   }
   const { data } = await api.post("/auth/login", payload);
@@ -14,15 +14,20 @@ export async function loginApi(email: string, password: string, recaptchaToken?:
   };
 }
 
-export async function registerApi(email: string, password: string, displayName: string, confirmPassword: string) {
-  // L'intercepteur gère automatiquement le CSRF
-  const { data } = await api.post("/auth/register", { email, password, displayName, confirmPassword });
-  return data as { success: boolean };
+export async function registerApi(email: string, password: string, displayName: string, confirmPassword: string, recaptchaToken?: string) {
+  const payload: any = { email, password, displayName, confirmPassword };
+  if (recaptchaToken) {
+    payload.recaptchaToken = recaptchaToken;
+  }
+  const { data } = await api.post("/auth/register", payload);
+  return data as { success: boolean, message?: string };
 }
 
-export const requestEmailCode = async (email: string) => {
-  const response = await api.post('/auth/request-verification-code', { email });
-  return response.data;
+export const requestEmailCode = async (email: string, recaptchaToken?: string) => {
+  const payload: any = { email };
+  if (recaptchaToken) payload.recaptchaToken = recaptchaToken;
+  const response = await api.post('/auth/request-email-code', payload);
+  return response.data as { success: boolean; message?: string; data?: any };
 };
 
 export const verifyEmail = async (email: string, code: string) => {
@@ -42,8 +47,12 @@ export const checkEmailAvailability = async (email: string) => {
   }
 };
 
-export async function forgotPassword(email: string) {
-  const { data } = await api.post("/auth/forgot-password", { email });
+export async function forgotPassword(email: string, recaptchaToken?: string) {
+  const payload: any = { email };
+  if (recaptchaToken) {
+    payload.recaptchaToken = recaptchaToken;
+  }
+  const { data } = await api.post("/auth/forgot-password", payload);
   return data as { success: boolean; message?: string };
 }
 

@@ -20,6 +20,7 @@ function ResetPasswordPageClient() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPasswordReqs, setShowPasswordReqs] = useState(false);
 
   useEffect(() => {
     const tid = sp.get("tokenId");
@@ -28,7 +29,16 @@ function ResetPasswordPageClient() {
     if (t) setToken(t);
   }, [sp]);
 
-  const canSubmit = tokenId && token && newPassword.length >= 6 && newPassword === confirmPassword;
+  // Validation des exigences de mot de passe
+  const passwordReqs = {
+    minLength: newPassword.length >= 8,
+    hasUpper: /[A-Z]/.test(newPassword),
+    hasLower: /[a-z]/.test(newPassword),
+    hasNumber: /\d/.test(newPassword),
+    hasSpecial: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword)
+  };
+  const allReqsMet = Object.values(passwordReqs).every(Boolean);
+  const canSubmit = allReqsMet && newPassword === confirmPassword && !loading;
 
   return (
     <div className="max-w-md mx-auto">
@@ -51,12 +61,58 @@ function ResetPasswordPageClient() {
           }
         }}
       >
-        <input className="w-full border rounded p-2 text-black" placeholder="Token ID" value={tokenId} onChange={(e) => setTokenId(e.target.value)} />
-        <input className="w-full border rounded p-2 text-black" placeholder="Token" value={token} onChange={(e) => setToken(e.target.value)} />
-        <input className="w-full border rounded p-2 text-black" placeholder="Nouveau mot de passe (≥ 6)" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-        <input className="w-full border rounded p-2 text-black" placeholder="Confirmer le mot de passe" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+        {/* Champs token cachés, non visibles ni modifiables par l'utilisateur */}
+        <input type="hidden" value={tokenId} readOnly />
+        <input type="hidden" value={token} readOnly />
+        <div className="relative">
+          <input
+            className="w-full border rounded p-2 text-black"
+            placeholder="Nouveau mot de passe (≥ 8)"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            onFocus={() => setShowPasswordReqs(true)}
+            onBlur={() => setShowPasswordReqs(false)}
+            required
+          />
+          {showPasswordReqs && newPassword && (
+            <div className="absolute top-full left-0 right-0 mt-1 p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-lg z-10">
+              <p className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2">Exigences du mot de passe :</p>
+              <div className="space-y-1 text-xs">
+                <div className={`flex items-center gap-2 ${passwordReqs.minLength ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                  <span className="w-1 h-1 rounded-full bg-current"></span>
+                  Au moins 8 caractères
+                </div>
+                <div className={`flex items-center gap-2 ${passwordReqs.hasUpper ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                  <span className="w-1 h-1 rounded-full bg-current"></span>
+                  Au moins une majuscule (A-Z)
+                </div>
+                <div className={`flex items-center gap-2 ${passwordReqs.hasLower ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                  <span className="w-1 h-1 rounded-full bg-current"></span>
+                  Au moins une minuscule (a-z)
+                </div>
+                <div className={`flex items-center gap-2 ${passwordReqs.hasNumber ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                  <span className="w-1 h-1 rounded-full bg-current"></span>
+                  Au moins un chiffre (0-9)
+                </div>
+                <div className={`flex items-center gap-2 ${passwordReqs.hasSpecial ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}>
+                  <span className="w-1 h-1 rounded-full bg-current"></span>
+                  Au moins un caractère spécial (!@#$%^&*)
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        <input
+          className="w-full border rounded p-2 text-black"
+          placeholder="Confirmer le mot de passe"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+        />
         {notice && <p className="text-sm opacity-90">{notice}</p>}
-        <button disabled={loading || !canSubmit} className="w-full bg-blue-600 text-white rounded p-2 disabled:opacity-60">Réinitialiser</button>
+        <button disabled={!canSubmit} className="w-full bg-blue-600 text-white rounded p-2 disabled:opacity-60">Réinitialiser</button>
       </form>
     </div>
   );

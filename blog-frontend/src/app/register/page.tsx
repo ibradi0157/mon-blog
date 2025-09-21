@@ -1,9 +1,9 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { registerApi, checkEmailAvailability, requestEmailCode } from "../services/auth";
-import { CaptchaChallenge } from "../components/captcha/CaptchaChallenge";
 import Link from "next/link";
+import Script from "next/script";
 
 export default function RegisterPage() {
   // Registration form page – render consistently on server and client
@@ -15,8 +15,10 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [showPasswordReqs, setShowPasswordReqs] = useState(false);
   const [emailValidation, setEmailValidation] = useState<{ checking: boolean; available?: boolean; message?: string }>({ checking: false });
-  const [captchaValidated, setCaptchaValidated] = useState(false);
-  const [captchaChallengeId, setCaptchaChallengeId] = useState<string | null>(null);
+  const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+  const shouldUseRecaptcha = Boolean(recaptchaSiteKey);
+  const widgetIdRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
 
   // Validation des exigences de mot de passe
@@ -29,6 +31,25 @@ export default function RegisterPage() {
   };
 
   const allReqsMet = Object.values(passwordReqs).every(Boolean);
+
+  // Render Google reCAPTCHA v2 checkbox when a site key is present
+  useEffect(() => {
+    if (!shouldUseRecaptcha) return;
+    if (!containerRef.current) return;
+    function tryRender() {
+      const grecaptcha = (window as any).grecaptcha;
+      if (!grecaptcha || !grecaptcha.render) {
+        setTimeout(tryRender, 200);
+        return;
+      }
+      if (widgetIdRef.current !== null) return;
+      widgetIdRef.current = grecaptcha.render(containerRef.current!, {
+        sitekey: recaptchaSiteKey,
+        theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+      });
+    }
+    tryRender();
+  }, [shouldUseRecaptcha, recaptchaSiteKey]);
 
   // Email validation avec debounce
   const validateEmail = useCallback(async (emailToCheck: string) => {
@@ -76,13 +97,18 @@ export default function RegisterPage() {
               setError("Cet email n'est pas disponible");
               return;
             }
-            if (!captchaValidated) {
-              setError("Veuillez compléter la vérification anti-robot");
-              return;
-            }
             try {
-              await registerApi(email, password, displayName, confirmPassword);
-              await requestEmailCode(email);
+              let token: string | undefined = undefined;
+              if (shouldUseRecaptcha && widgetIdRef.current !== null) {
+                const grecaptcha = (window as any).grecaptcha;
+                token = grecaptcha?.getResponse(widgetIdRef.current) || undefined;
+                if (!token) {
+                  setError("Veuillez cocher le reCAPTCHA");
+                  return;
+                }
+              }
+              await registerApi(email, password, displayName, confirmPassword, token);
+              await requestEmailCode(email, token);
               router.push(`/verify-email?email=${encodeURIComponent(email)}`);
             } catch (e: any) {
               setError(e?.response?.data?.message ?? "Échec d'inscription");
@@ -173,32 +199,15 @@ export default function RegisterPage() {
             onChange={(e) => setConfirmPassword(e.target.value)} 
             required
           />
-          
-          <CaptchaChallenge
-            onValidated={(challengeId) => {
-              setCaptchaValidated(true);
-              setCaptchaChallengeId(challengeId);
-            }}
-            onError={(error) => {
-              setCaptchaValidated(false);
-              setCaptchaChallengeId(null);
-              setError(`Erreur CAPTCHA: ${error}`);
-            }}
-            className="mt-4"
-            required={true}
-          />
-          
+          {shouldUseRecaptcha && (
+            <div className="pt-1">
+              <div ref={containerRef} className="g-recaptcha" />
+              <Script src="https://www.google.com/recaptcha/api.js?render=explicit" strategy="afterInteractive" />
+            </div>
+          )}
+
           {error && <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>}
-          <button 
-            disabled={!allReqsMet || !captchaValidated || emailValidation.available === false}
-            className={`w-full rounded-lg px-3 py-2 transition-colors ${
-              allReqsMet && captchaValidated && emailValidation.available !== false
-                ? 'bg-green-600 hover:bg-green-700 text-white'
-                : 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-            }`}
-          >
-            Créer un compte
-          </button>
+          <button className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-2 transition-colors disabled:opacity-60" disabled={!allReqsMet || emailValidation.available === false}>Créer un compte</button>
         </form>
       </div>
     </div>

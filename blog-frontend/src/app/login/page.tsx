@@ -13,12 +13,12 @@ export default function LoginPage() {
   const { login } = useAuth();
   const router = useRouter();
   const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
-  const isProd = process.env.NODE_ENV === 'production';
-  const shouldUseRecaptcha = Boolean(isProd && recaptchaSiteKey);
+  // Enable in any environment when a site key is provided (dev and prod)
+  const shouldUseRecaptcha = Boolean(recaptchaSiteKey);
   const widgetIdRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Render Google reCAPTCHA v2 checkbox in production only
+  // Render Google reCAPTCHA v2 checkbox when a site key is present
   useEffect(() => {
     if (!shouldUseRecaptcha) return;
     if (!containerRef.current) return;
@@ -90,7 +90,16 @@ export default function LoginPage() {
               setError(null);
               setNotice(null);
               try {
-                await forgotPassword(email.trim());
+                let token: string | undefined = undefined;
+                if (shouldUseRecaptcha && widgetIdRef.current !== null) {
+                  const grecaptcha = (window as any).grecaptcha;
+                  token = grecaptcha?.getResponse(widgetIdRef.current) || undefined;
+                  if (!token) {
+                    setError("Veuillez cocher le reCAPTCHA");
+                    return;
+                  }
+                }
+                await forgotPassword(email.trim(), token);
                 setNotice("Si un compte existe pour cet email, un message a été envoyé.");
               } catch (_) {
                 // Toujours un message générique

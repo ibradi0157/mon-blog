@@ -1,5 +1,5 @@
 // src/auth/dto/register.dto.ts
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class RegisterDto {
   @IsEmail()
@@ -15,4 +15,8 @@ export class RegisterDto {
 
   @IsString()
   displayName: string;
+
+  @IsOptional()
+  @IsString()
+  recaptchaToken?: string;
 }
