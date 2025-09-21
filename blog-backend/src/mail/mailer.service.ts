@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import nodemailer, { Transporter } from 'nodemailer';
 import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import Mailjet from 'node-mailjet';
+import { EmailTemplatesService } from '../email-templates/email-templates.service';
 
 @Injectable()
 export class MailerService {
@@ -11,7 +12,10 @@ export class MailerService {
   private transporter: Transporter | null = null;
   private mailjet: ReturnType<typeof Mailjet.apiConnect> | null = null;
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly emailTemplates: EmailTemplatesService,
+  ) {}
 
   private isDev() {
     return (this.config.get<string>('NODE_ENV') || 'development') === 'development';
@@ -98,27 +102,75 @@ export class MailerService {
   }
 
   async sendVerificationCode(email: string, code: string, expiresAt?: Date) {
-    const expText = expiresAt ? `Ce code expire le ${expiresAt.toLocaleString()}.` : 'Ce code expirera bientôt.';
-    const html = `
-      <div style="font-family:Inter,system-ui,Arial,sans-serif;line-height:1.6;">
-        <h2>Vérification de votre adresse email</h2>
-        <p>Utilisez le code ci-dessous pour finaliser votre inscription:</p>
-        <p style="font-size:28px;font-weight:700;letter-spacing:4px;background:#f3f4f6;padding:12px 16px;border-radius:8px;display:inline-block;">${code}</p>
-        <p style="color:#6b7280;">${expText}</p>
-      </div>
-    `;
-    await this.sendMail(email, 'Votre code de vérification', html);
+    const siteName = this.config.get<string>('BLOG_NAME') || 'Mon Blog';
+    const expiresIn = expiresAt ? '1 heure' : '45 minutes';
+    try {
+      const r = await this.emailTemplates.renderTemplate('email_verification_code', {
+        '{{siteName}}': siteName,
+        '{{userName}}': email.split('@')[0],
+        '{{code}}': code,
+        '{{expiresIn}}': expiresIn,
+      });
+      await this.sendMail(email, r.subject, r.html);
+      return;
+    } catch (_) {
+      // Fallback inline
+      const expText = expiresAt ? `Ce code expire le ${expiresAt.toLocaleString()}.` : 'Ce code expirera bientôt.';
+      const html = `
+        <div style="font-family:Inter,system-ui,Arial,sans-serif;line-height:1.6;">
+          <h2>Vérification de votre adresse email</h2>
+          <p>Utilisez le code ci-dessous pour finaliser votre inscription:</p>
+          <p style="font-size:28px;font-weight:700;letter-spacing:4px;background:#f3f4f6;padding:12px 16px;border-radius:8px;display:inline-block;">${code}</p>
+          <p style="color:#6b7280;">${expText}</p>
+        </div>
+      `;
+      await this.sendMail(email, 'Votre code de vérification', html);
+    }
   }
 
   async sendPasswordReset(email: string, resetUrl: string) {
-    const html = `
-      <div style="font-family:Inter,system-ui,Arial,sans-serif;line-height:1.6;">
-        <h2>Réinitialiser votre mot de passe</h2>
-        <p>Cliquez sur le bouton ci-dessous pour réinitialiser votre mot de passe. Ce lien est valable 1 heure.</p>
-        <p><a href="${resetUrl}" style="background:#111827;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block;">Réinitialiser le mot de passe</a></p>
-        <p style="color:#6b7280;">Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur:<br/>${resetUrl}</p>
-      </div>
-    `;
-    await this.sendMail(email, 'Réinitialisation du mot de passe', html);
+    const siteName = this.config.get<string>('BLOG_NAME') || 'Mon Blog';
+    const userName = email.split('@')[0];
+    try {
+      const r = await this.emailTemplates.renderTemplate('password_reset', {
+        '{{siteName}}': siteName,
+        '{{userName}}': userName,
+        '{{resetUrl}}': resetUrl,
+        '{{expiresIn}}': '1 heure',
+      });
+      await this.sendMail(email, r.subject, r.html);
+      return;
+    } catch (_) {
+      const html = `
+        <div style="font-family:Inter,system-ui,Arial,sans-serif;line-height:1.6;">
+          <h2>Réinitialiser votre mot de passe</h2>
+          <p>Cliquez sur le bouton ci-dessous pour réinitialiser votre mot de passe. Ce lien est valable 1 heure.</p>
+          <p><a href="${resetUrl}" style="background:#111827;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;display:inline-block;">Réinitialiser le mot de passe</a></p>
+          <p style="color:#6b7280;">Si le bouton ne fonctionne pas, copiez-collez ce lien dans votre navigateur:<br/>${resetUrl}</p>
+        </div>
+      `;
+      await this.sendMail(email, 'Réinitialisation du mot de passe', html);
+    }
+  }
+
+  async sendWelcome(email: string, displayName?: string) {
+    const siteName = this.config.get<string>('BLOG_NAME') || 'Mon Blog';
+    const userName = displayName || email.split('@')[0];
+    try {
+      const r = await this.emailTemplates.renderTemplate('welcome', {
+        '{{siteName}}': siteName,
+        '{{userName}}': userName,
+      });
+      await this.sendMail(email, r.subject, r.html);
+      return;
+    } catch (_) {
+      const html = `
+        <div style="font-family:Inter,system-ui,Arial,sans-serif;line-height:1.6;">
+          <h2>Bienvenue sur ${siteName}${userName ? ", " + userName : ''} !</h2>
+          <p>Votre compte a été vérifié avec succès.</p>
+        </div>
+      `;
+      await this.sendMail(email, `Bienvenue sur ${siteName}`, html);
+    }
   }
 }

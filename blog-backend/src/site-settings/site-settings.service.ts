@@ -19,7 +19,9 @@ export class SiteSettingsService {
     return this.cacheService.getOrSet(
       cacheKey,
       async () => {
-        let settings = await this.repo.findOne({ order: { createdAt: 'DESC' } });
+        // TypeORM 0.3: findOne without a where clause is not allowed. Fetch latest via find({ take: 1 }).
+        const rows = await this.repo.find({ order: { createdAt: 'DESC' }, take: 1 });
+        let settings = rows[0];
         if (!settings) {
           // Create default settings
           settings = this.repo.create({
@@ -37,7 +39,9 @@ export class SiteSettingsService {
   }
 
   async updateSettings(dto: UpdateSiteSettingsDto): Promise<SiteSettings> {
-    let settings = await this.repo.findOne({ order: { createdAt: 'DESC' } });
+    // See note above: use find({ take: 1 }) to get the latest row safely across TypeORM versions
+    const rows = await this.repo.find({ order: { createdAt: 'DESC' }, take: 1 });
+    let settings = rows[0];
     
     if (!settings) {
       settings = this.repo.create(dto);
@@ -80,5 +84,51 @@ export class SiteSettingsService {
       showPoweredBy: settings.showPoweredBy,
       homepageConfig: settings.homepageConfig,
     };
+  }
+
+  async resetToDefaults(): Promise<SiteSettings> {
+    // Get latest settings row (if any)
+    const rows = await this.repo.find({ order: { createdAt: 'DESC' }, take: 1 });
+    let settings = rows[0];
+
+    const defaults: Partial<SiteSettings> = {
+      siteName: 'Mon Blog',
+      siteDescription: 'Un blog moderne et élégant',
+      logoUrl: null as any,
+      faviconUrl: null as any,
+      defaultTheme: 'light',
+      primaryColor: null as any,
+      secondaryColor: null as any,
+      metaTitle: null as any,
+      metaDescription: null as any,
+      metaKeywords: null as any,
+      ogImage: null as any,
+      twitterHandle: null as any,
+      googleAnalyticsId: null as any,
+      facebookPixelId: null as any,
+      contactEmail: null as any,
+      socialFacebook: null as any,
+      socialTwitter: null as any,
+      socialInstagram: null as any,
+      socialLinkedIn: null as any,
+      socialYoutube: null as any,
+      footerText: null as any,
+      showPoweredBy: true,
+      homepageConfig: null as any,
+    };
+
+    if (!settings) {
+      settings = this.repo.create(defaults);
+    } else {
+      Object.assign(settings, defaults);
+    }
+
+    const saved = await this.repo.save(settings);
+
+    // Invalidate cache
+    await this.cacheService.del('site-settings:current');
+    await this.cacheService.invalidateTag('site-settings');
+
+    return saved;
   }
 }

@@ -9,10 +9,10 @@ export class EmailTemplate {
 
   @Column({
     type: 'enum',
-    enum: ['new_article', 'author_published', 'category_update', 'welcome', 'password_reset'],
+    enum: ['new_article', 'author_published', 'category_update', 'welcome', 'password_reset', 'email_verification', 'email_verification_code'],
     unique: true
   })
-  type: 'new_article' | 'author_published' | 'category_update' | 'welcome' | 'password_reset';
+  type: 'new_article' | 'author_published' | 'category_update' | 'welcome' | 'password_reset' | 'email_verification' | 'email_verification_code';
 
   @Column()
   name: string;

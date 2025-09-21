@@ -1,5 +1,5 @@
 // src/email-templates/email-templates.controller.ts
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -7,12 +7,16 @@ import { RoleName } from '../roles/roles.constants';
 import { EmailTemplatesService } from './email-templates.service';
 import { CreateEmailTemplateDto, UpdateEmailTemplateDto } from './dto/email-template.dto';
 import { EmailTemplate } from './email-template.entity';
+import { MailerService } from '../mail/mailer.service';
 
 @Controller('email-templates')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(RoleName.PRIMARY_ADMIN)
 export class EmailTemplatesController {
-  constructor(private readonly emailTemplatesService: EmailTemplatesService) {}
+  constructor(
+    private readonly emailTemplatesService: EmailTemplatesService,
+    private readonly mailer: MailerService,
+  ) {}
 
   @Post()
   async create(@Body() createEmailTemplateDto: CreateEmailTemplateDto): Promise<EmailTemplate> {
@@ -50,5 +54,19 @@ export class EmailTemplatesController {
   ): Promise<{ subject: string; html: string; text?: string }> {
     const template = await this.emailTemplatesService.findOne(id);
     return await this.emailTemplatesService.renderTemplate(template.type, variables);
+  }
+
+  @Post(':id/send-test')
+  async sendTest(
+    @Param('id') id: string,
+    @Body() body: { to: string; variables?: Record<string, string> }
+  ): Promise<{ success: boolean }> {
+    if (!body?.to || typeof body.to !== 'string') {
+      throw new BadRequestException('Paramètre "to" requis');
+    }
+    const template = await this.emailTemplatesService.findOne(id);
+    const rendered = await this.emailTemplatesService.renderTemplate(template.type, body.variables || {});
+    await this.mailer.sendMail(body.to, rendered.subject, rendered.html);
+    return { success: true };
   }
 }

@@ -14,6 +14,11 @@ export class RolesGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
+    // If no authenticated user or missing role info, deny access gracefully (Nest will return 403)
+    if (!user || !user.role || !user.role.name) {
+      return false;
+    }
+
     return requiredRoles.includes(user.role.name);
   }
 }

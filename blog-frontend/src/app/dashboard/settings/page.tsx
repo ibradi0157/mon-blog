@@ -9,9 +9,9 @@ import {
   Palette, 
   Image,
   Upload,
-  Eye,
   Share2,
-  Search
+  Search,
+  RotateCcw,
 } from "lucide-react";
 import { Input } from "@/app/components/ui/Input";
 import { Button } from "@/app/components/ui/Button";
@@ -20,6 +20,7 @@ import {
   updateSiteSettings, 
   uploadSiteLogo, 
   uploadSiteFavicon,
+  resetSiteSettingsToDefaults,
   type SiteSettings,
   type UpdateSiteSettingsPayload
 } from "@/app/services/site-settings";
@@ -42,6 +43,7 @@ export default function SettingsPage() {
     mutationFn: (payload: UpdateSiteSettingsPayload) => updateSiteSettings(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-site-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["public-site-settings"] });
       toast.success("Paramètres mis à jour avec succès");
     },
     onError: (error: any) => {
@@ -54,6 +56,7 @@ export default function SettingsPage() {
     mutationFn: uploadSiteLogo,
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["admin-site-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["public-site-settings"] });
       toast.success("Logo mis à jour avec succès");
       setFormData(prev => ({ ...prev, logoUrl: result.data.logoUrl }));
     },
@@ -64,10 +67,25 @@ export default function SettingsPage() {
     mutationFn: uploadSiteFavicon,
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["admin-site-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["public-site-settings"] });
       toast.success("Favicon mis à jour avec succès");
       setFormData(prev => ({ ...prev, faviconUrl: result.data.faviconUrl }));
     },
     onError: () => toast.error("Erreur lors du téléversement du favicon"),
+  });
+
+  const resetMutation = useMutation({
+    mutationFn: resetSiteSettingsToDefaults,
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-site-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["public-site-settings"] });
+      setFormData(result.data);
+      toast.success("Paramètres réinitialisés aux valeurs par défaut");
+    },
+    onError: (error: any) => {
+      toast.error("Erreur lors de la réinitialisation des paramètres");
+      console.error("Settings reset error:", error);
+    },
   });
 
   // Sync state when query resolves
@@ -94,6 +112,13 @@ export default function SettingsPage() {
   const handleFaviconUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) faviconUploadMutation.mutate(file);
+  };
+
+  const handleReset = () => {
+    if (!window.confirm("Êtes-vous sûr de vouloir réinitialiser les paramètres aux valeurs par défaut ? Cette action est irréversible.")) {
+      return;
+    }
+    resetMutation.mutate();
   };
 
   if (settingsQuery.isLoading) {
@@ -379,48 +404,21 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-          <div className="flex items-center space-x-2 mb-6">
-            <Eye className="w-5 h-5 text-indigo-600" />
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Pied de page</h2>
-          </div>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                Texte du pied de page
-              </label>
-              <textarea
-                rows={3}
-                value={formData.footerText || ""}
-                onChange={(e) => handleInputChange("footerText", e.target.value)}
-                placeholder=" 2024 Mon Blog. Tous droits réservés."
-                className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                  Afficher "Powered by"
-                </label>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Afficher le crédit dans le pied de page
-                </p>
-              </div>
-              <input
-                type="checkbox"
-                checked={formData.showPoweredBy || false}
-                onChange={(e) => handleInputChange("showPoweredBy", e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-gray-100 dark:bg-slate-700 border-gray-300 dark:border-slate-600 rounded focus:ring-blue-500"
-              />
-            </div>
-          </div>
-        </div>
+        {/* Footer section removed: managed elsewhere */}
 
-        {/* Save Button */}
-        <div className="flex justify-end">
+        {/* Actions */}
+        <div className="flex items-center justify-between">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleReset}
+            disabled={resetMutation.isPending}
+            className="text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            {resetMutation.isPending ? "Réinitialisation..." : "Réinitialiser par défaut"}
+          </Button>
+
           <Button type="submit" disabled={updateMutation.isPending}>
             <Save className="w-4 h-4 mr-2" />
             {updateMutation.isPending ? "Sauvegarde..." : "Enregistrer les paramètres"}

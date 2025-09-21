@@ -1,5 +1,5 @@
 // src/auth/dto/login.dto.ts
-import { IsEmail, IsString } from 'class-validator';
+import { IsEmail, IsOptional, IsString } from 'class-validator';
 
 export class LoginDto {
   @IsEmail()
@@ -7,4 +7,9 @@ export class LoginDto {
 
   @IsString()
   password: string;
+
+  // Google reCAPTCHA v2 token (required only in production)
+  @IsOptional()
+  @IsString()
+  recaptchaToken?: string;
 }

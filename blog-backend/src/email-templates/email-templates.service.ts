@@ -84,6 +84,188 @@ export class EmailTemplatesService {
         `
       },
       {
+        type: 'welcome' as const,
+        name: 'Bienvenue',
+        subject: 'Bienvenue sur {{siteName}}, {{userName}} !',
+        description: "Envoyé après la vérification de l'adresse email",
+        availableVariables: [
+          '{{siteName}}', '{{userName}}'
+        ],
+        htmlContent: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Bienvenue - {{siteName}}</title>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+              .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>Bienvenue {{userName}} 👋</h1>
+              <p>Merci d'avoir rejoint <strong>{{siteName}}</strong>. Votre adresse email a été vérifiée avec succès.</p>
+            </div>
+            <p>Vous pouvez maintenant commenter, suivre des auteurs, et recevoir des notifications.</p>
+            <div class="footer">
+              <p>© {{siteName}}</p>
+            </div>
+          </body>
+          </html>
+        `,
+        textContent: `
+          Bienvenue {{userName}} !
+
+          Merci d'avoir rejoint {{siteName}}. Votre adresse email a été vérifiée avec succès.
+        `
+      },
+      {
+        type: 'email_verification_code' as const,
+        name: "Code de vérification d'email",
+        subject: 'Votre code de vérification pour {{siteName}}',
+        description: "Envoyé pour confirmer l'adresse email avec un code à usage unique",
+        availableVariables: [
+          '{{siteName}}', '{{userName}}', '{{code}}', '{{expiresIn}}'
+        ],
+        htmlContent: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Code de vérification - {{siteName}}</title>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+              .code { font-size: 28px; font-weight: 700; letter-spacing: 4px; background: #f3f4f6; padding: 12px 16px; border-radius: 8px; display: inline-block; margin: 20px 0; }
+              .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>Bonjour {{userName}} 👋</h1>
+              <p>Voici votre code de vérification pour <strong>{{siteName}}</strong>.</p>
+            </div>
+
+            <div class="code">{{code}}</div>
+            <p>Ce code expirera dans <strong>{{expiresIn}}</strong>.</p>
+
+            <div class="footer">
+              <p>© {{siteName}}</p>
+            </div>
+          </body>
+          </html>
+        `,
+        textContent: `
+          Bonjour {{userName}},
+
+          Voici votre code de vérification pour {{siteName}}:
+
+          Code: {{code}}
+          Ce code expirera dans {{expiresIn}}.
+        `
+      },
+      {
+        type: 'password_reset' as const,
+        name: 'Réinitialisation du mot de passe',
+        subject: 'Réinitialisez votre mot de passe sur {{siteName}}',
+        description: 'Envoyé lorsqu’un utilisateur demande la réinitialisation de son mot de passe',
+        availableVariables: [
+          '{{siteName}}', '{{userName}}', '{{resetUrl}}', '{{expiresIn}}'
+        ],
+        htmlContent: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Réinitialisation du mot de passe - {{siteName}}</title>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+              .btn { display: inline-block; padding: 12px 24px; background: #dc2626; color: white; text-decoration: none; border-radius: 6px; }
+              .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; }
+              .muted { color: #6b7280; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>Bonjour {{userName}} 👋</h1>
+              <p>Vous avez demandé la réinitialisation de votre mot de passe sur <strong>{{siteName}}</strong>.</p>
+            </div>
+
+            <p>Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe. Ce lien expire dans <strong>{{expiresIn}}</strong>.</p>
+            <p style="margin: 20px 0;"><a href="{{resetUrl}}" class="btn">Réinitialiser mon mot de passe</a></p>
+            <p class="muted">Si vous n'êtes pas à l'origine de cette demande, vous pouvez ignorer cet email.</p>
+
+            <div class="footer">
+              <p>© {{siteName}}</p>
+            </div>
+          </body>
+          </html>
+        `,
+        textContent: `
+          Bonjour {{userName}},
+
+          Vous avez demandé la réinitialisation de votre mot de passe sur {{siteName}}.
+
+          Lien de réinitialisation: {{resetUrl}}
+          Ce lien expirera dans {{expiresIn}}.
+
+          Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.
+        `
+      },
+      {
+        type: 'email_verification' as const,
+        name: "Vérification d'adresse email",
+        subject: 'Vérifiez votre adresse email sur {{siteName}}',
+        description: "Envoyé pour confirmer l'adresse email d'un utilisateur",
+        availableVariables: [
+          '{{siteName}}', '{{userName}}', '{{verificationUrl}}', '{{expiresIn}}'
+        ],
+        htmlContent: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Vérification d'email - {{siteName}}</title>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+              .btn { display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; }
+              .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>Bienvenue {{userName}} 👋</h1>
+              <p>Merci de vous être inscrit sur <strong>{{siteName}}</strong>. Veuillez confirmer votre adresse email.</p>
+            </div>
+
+            <p>Cliquez sur le bouton ci-dessous pour vérifier votre adresse email. Le lien expirera dans <strong>{{expiresIn}}</strong>.</p>
+            <p style="margin: 20px 0;"><a href="{{verificationUrl}}" class="btn">Vérifier mon email</a></p>
+
+            <div class="footer">
+              <p>© {{siteName}}</p>
+            </div>
+          </body>
+          </html>
+        `,
+        textContent: `
+          Bienvenue {{userName}},
+
+          Merci pour votre inscription sur {{siteName}}. Veuillez confirmer votre adresse email en visitant le lien suivant:
+
+          {{verificationUrl}}
+
+          Ce lien expirera dans {{expiresIn}}.
+        `
+      },
+      {
         type: 'author_published' as const,
         name: 'Auteur a Publié',
         subject: '{{authorName}} a publié un nouvel article',

@@ -9,6 +9,8 @@ import { AuthProvider } from "@/app/providers/AuthProvider";
 import { ThemeProvider } from "@/app/components/ThemeToggle";
 import { NavBar } from "@/app/components/NavBar";
 import { ServiceWorkerRegistration } from "@/app/components/ServiceWorkerRegistration";
+import { SiteSettingsProvider } from "@/app/providers/SiteSettingsProvider";
+import { FaviconUpdater } from "@/app/components/FaviconUpdater";
 import { DynamicFooter } from "@/app/components/DynamicFooter";
 
 const inter = Inter({
@@ -95,14 +97,17 @@ export default function RootLayout({
         <ThemeProvider>
           <QueryProvider>
             <AuthProvider>
-              <ServiceWorkerRegistration />
-              <div className="flex flex-col min-h-screen">
-                <NavBar />
-                <main className="flex-1">
-                  {children}
-                </main>
-                <DynamicFooter />
-              </div>
+              <SiteSettingsProvider>
+                <ServiceWorkerRegistration />
+                <FaviconUpdater />
+                <div className="flex flex-col min-h-screen">
+                  <NavBar />
+                  <main className="flex-1">
+                    {children}
+                  </main>
+                  <DynamicFooter />
+                </div>
+              </SiteSettingsProvider>
             </AuthProvider>
           </QueryProvider>
         </ThemeProvider>

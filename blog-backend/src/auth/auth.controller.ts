@@ -104,7 +104,34 @@ export class AuthController {
   }
 
   @Post('login')
-  login(@Body() dto: LoginDto) {
+  async login(@Body() dto: LoginDto, @Request() req) {
+    // In production, if RECAPTCHA_SECRET_KEY is set, verify Google reCAPTCHA v2 token
+    const isProd = process.env.NODE_ENV === 'production';
+    const secret = process.env.RECAPTCHA_SECRET_KEY;
+    if (isProd && secret) {
+      if (!dto.recaptchaToken) {
+        throw new BadRequestException('Captcha requis');
+      }
+      try {
+        const params = new URLSearchParams();
+        params.append('secret', secret);
+        params.append('response', dto.recaptchaToken);
+        const ip = (req?.ip || req?.connection?.remoteAddress || '').toString();
+        if (ip) params.append('remoteip', ip);
+        const resp = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params.toString(),
+        });
+        const data = await resp.json();
+        if (!data?.success) {
+          throw new BadRequestException('Captcha invalide');
+        }
+      } catch (e) {
+        if (e instanceof BadRequestException) throw e;
+        throw new BadRequestException('Erreur de vérification du Captcha');
+      }
+    }
     return this.authService.login(dto);
   }
 

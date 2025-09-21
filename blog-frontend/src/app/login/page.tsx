@@ -1,8 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { loginApi, forgotPassword } from "../services/auth";
 import { useAuth } from "../providers/AuthProvider";
 import { useRouter } from "next/navigation";
+import Script from "next/script";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -11,6 +12,30 @@ export default function LoginPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const { login } = useAuth();
   const router = useRouter();
+  const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+  const isProd = process.env.NODE_ENV === 'production';
+  const shouldUseRecaptcha = Boolean(isProd && recaptchaSiteKey);
+  const widgetIdRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Render Google reCAPTCHA v2 checkbox in production only
+  useEffect(() => {
+    if (!shouldUseRecaptcha) return;
+    if (!containerRef.current) return;
+    function tryRender() {
+      const grecaptcha = (window as any).grecaptcha;
+      if (!grecaptcha || !grecaptcha.render) {
+        setTimeout(tryRender, 200);
+        return;
+      }
+      if (widgetIdRef.current !== null) return;
+      widgetIdRef.current = grecaptcha.render(containerRef.current!, {
+        sitekey: recaptchaSiteKey,
+        theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+      });
+    }
+    tryRender();
+  }, [shouldUseRecaptcha, recaptchaSiteKey]);
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center safe-px py-12 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
@@ -26,7 +51,16 @@ export default function LoginPage() {
             setError(null);
             setNotice(null);
             try {
-              const res = await loginApi(email, password);
+              let token: string | undefined = undefined;
+              if (shouldUseRecaptcha && widgetIdRef.current !== null) {
+                const grecaptcha = (window as any).grecaptcha;
+                token = grecaptcha?.getResponse(widgetIdRef.current) || undefined;
+                if (!token) {
+                  setError("Veuillez cocher le reCAPTCHA");
+                  return;
+                }
+              }
+              const res = await loginApi(email, password, token);
               const user = res.user ? { ...res.user, role: res.user.role as any } : null;
               login(res.access_token, user);
               router.push("/dashboard");
@@ -37,6 +71,14 @@ export default function LoginPage() {
         >
           <input className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <input className="w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Mot de passe" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          {shouldUseRecaptcha && (
+            <div className="pt-1">
+              {/* Google reCAPTCHA v2 checkbox */}
+              <div ref={containerRef} className="g-recaptcha" />
+              {/* Load script explicitly */}
+              <Script src="https://www.google.com/recaptcha/api.js?render=explicit" strategy="afterInteractive" />
+            </div>
+          )}
           {error && <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>}
           {notice && <p className="text-emerald-700 dark:text-emerald-400 text-sm">{notice}</p>}
           <button className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-2 transition-colors">Se connecter</button>

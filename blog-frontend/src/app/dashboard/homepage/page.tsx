@@ -9,7 +9,7 @@ import {
   Plus, GripVertical, Trash2, Eye, Monitor, Smartphone, Type, Grid3X3, Code, Space, Megaphone, Upload, Save, Sparkles, Tag
 } from "lucide-react";
 import { getAdminHomepage, updateAdminHomepage, type HomepageConfig } from "@/app/services/homepage";
-import { listAdminArticles, type Article, uploadContentImage, listCategories, type Category } from "@/app/services/articles";
+import { listAdminArticles, type Article, uploadArticleContentImage, listCategories, type Category } from "@/app/services/articles";
 import type { Section, HeroSection, FeaturedGridSection, HtmlSection, SpacerSection, CtaSection, CategoryGridSection } from "@/app/services/homepage";
 import Link from 'next/link';
 import { toAbsoluteImageUrl } from "@/app/lib/api";
@@ -94,7 +94,7 @@ export default function HomepageBuilderPage() {
   };
 
   const onUploadHero = async (file: File, idx?: number) => {
-    const res = await uploadContentImage('hero-' + Date.now(), file);
+    const res = await uploadArticleContentImage(file);
     if (idx != null) updateSection(idx, { imageUrl: res.data.url } as Partial<HeroSection>);
   };
 

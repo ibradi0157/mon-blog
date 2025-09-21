@@ -1,5 +1,19 @@
 // src/site-settings/dto/update-site-settings.dto.ts
-import { IsOptional, IsString, IsBoolean, IsIn, IsEmail, IsUrl, MaxLength } from 'class-validator';
+import { IsOptional, IsString, IsBoolean, IsIn, IsEmail, IsUrl, MaxLength, Validate, ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments } from 'class-validator';
+
+@ValidatorConstraint({ name: 'isUrlOrUploadPath', async: false })
+class UrlOrUploadPathConstraint implements ValidatorConstraintInterface {
+  validate(value: any): boolean {
+    if (value === undefined || value === null || value === '') return true; // handled by @IsOptional
+    if (typeof value !== 'string') return false;
+    if (/^https?:\/\//i.test(value)) return true;
+    if (value.startsWith('/uploads/')) return true;
+    return false;
+  }
+  defaultMessage(args: ValidationArguments): string {
+    return `${args.property} must be a valid http(s) URL or a path starting with /uploads/`;
+  }
+}
 
 export class UpdateSiteSettingsDto {
   @IsOptional()
@@ -13,11 +27,11 @@ export class UpdateSiteSettingsDto {
   siteDescription?: string;
 
   @IsOptional()
-  @IsUrl()
+  @Validate(UrlOrUploadPathConstraint)
   logoUrl?: string;
 
   @IsOptional()
-  @IsUrl()
+  @Validate(UrlOrUploadPathConstraint)
   faviconUrl?: string;
 
   @IsOptional()
@@ -49,7 +63,7 @@ export class UpdateSiteSettingsDto {
   metaKeywords?: string;
 
   @IsOptional()
-  @IsUrl()
+  @Validate(UrlOrUploadPathConstraint)
   ogImage?: string;
 
   @IsOptional()

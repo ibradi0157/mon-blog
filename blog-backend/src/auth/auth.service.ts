@@ -213,6 +213,7 @@ export class AuthService {
       });
       await this.userRepo.save(user);
       await this.pendingRepo.delete(pending.id);
+      try { await this.mailer.sendWelcome(user.email, user.displayName); } catch {}
       return { success: true, message: 'Email vérifié. Compte créé.', data: { email: user.email } };
     }
 
@@ -230,6 +231,7 @@ export class AuthService {
     user.emailVerificationCodeHash = null;
     user.verificationCodeExpiresAt = null;
     await this.userRepo.save(user);
+    try { await this.mailer.sendWelcome(user.email, user.displayName); } catch {}
     return { success: true, message: 'Email vérifié' };
   }
 

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { getEmailTemplate, previewEmailTemplate } from '../../../../services/email-templates';
+import { getEmailTemplate, previewEmailTemplate, sendTestEmailTemplate } from '../../../../services/email-templates';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -52,6 +52,18 @@ const DEFAULT_PREVIEW_VARIABLES: Record<string, Record<string, string>> = {
     '{{resetUrl}}': 'https://monblog.com/reset-password?token=reset123',
     '{{expiresIn}}': '24 heures',
   },
+  'email_verification': {
+    '{{siteName}}': 'Mon Blog',
+    '{{userName}}': 'Utilisateur',
+    '{{verificationUrl}}': 'https://monblog.com/verify-email?token=verify123',
+    '{{expiresIn}}': '24 heures',
+  },
+  'email_verification_code': {
+    '{{siteName}}': 'Mon Blog',
+    '{{userName}}': 'Utilisateur',
+    '{{code}}': '123456',
+    '{{expiresIn}}': '45 minutes',
+  },
 };
 
 const EMAIL_TYPE_LABELS: Record<string, string> = {
@@ -60,6 +72,8 @@ const EMAIL_TYPE_LABELS: Record<string, string> = {
   'category_update': 'Mise à jour catégorie',
   'welcome': 'Bienvenue',
   'password_reset': 'Réinitialisation mot de passe',
+  'email_verification': 'Vérification email',
+  'email_verification_code': 'Code de vérification',
 };
 
 export default function PreviewEmailTemplatePage() {
@@ -68,6 +82,7 @@ export default function PreviewEmailTemplatePage() {
 
   const [previewVariables, setPreviewVariables] = useState<Record<string, string>>({});
   const [isVariablesReady, setIsVariablesReady] = useState(false);
+  const [testEmail, setTestEmail] = useState<string>("");
 
   const { data: template, isLoading, error } = useQuery({
     queryKey: ['email-template', templateId],
@@ -77,6 +92,10 @@ export default function PreviewEmailTemplatePage() {
 
   const previewMutation = useMutation({
     mutationFn: (variables: Record<string, string>) => previewEmailTemplate(templateId, variables),
+  });
+
+  const sendTestMutation = useMutation({
+    mutationFn: async (to: string) => sendTestEmailTemplate(templateId, { to, variables: previewVariables }),
   });
 
   // Initialize preview variables when template is loaded
@@ -221,6 +240,35 @@ export default function PreviewEmailTemplatePage() {
                   Actualiser l'aperçu
                 </Button>
               </div>
+
+              <div className="pt-4 border-t space-y-2">
+                <Label htmlFor="testEmail" className="text-sm font-medium">Envoyer un email de test</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="testEmail"
+                    type="email"
+                    placeholder="destinataire@example.com"
+                    value={testEmail}
+                    onChange={(e) => setTestEmail(e.target.value)}
+                    className="text-sm"
+                  />
+                  <Button
+                    onClick={() => sendTestMutation.mutate(testEmail)}
+                    disabled={!testEmail || sendTestMutation.isPending}
+                  >
+                    {sendTestMutation.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : null}
+                    Envoyer
+                  </Button>
+                </div>
+                {sendTestMutation.isSuccess && (
+                  <p className="text-xs text-green-600">Email de test envoyé.</p>
+                )}
+                {sendTestMutation.isError && (
+                  <p className="text-xs text-red-600">Échec de l'envoi. Vérifiez la console.</p>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -261,12 +309,12 @@ export default function PreviewEmailTemplatePage() {
                   </TabsList>
                   
                   <TabsContent value="html" className="mt-4">
-                    <div className="border rounded-lg p-4 bg-white dark:bg-gray-900">
-                      <div 
-                        dangerouslySetInnerHTML={{ 
-                          __html: previewMutation.data.html 
-                        }}
-                        className="prose prose-sm max-w-none dark:prose-invert"
+                    <div className="border rounded-lg overflow-hidden">
+                      <iframe
+                        title="Aperçu HTML de l'email"
+                        className="w-full h-[800px] bg-white dark:bg-gray-900"
+                        sandbox="allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+                        srcDoc={previewMutation.data.html}
                       />
                     </div>
                   </TabsContent>

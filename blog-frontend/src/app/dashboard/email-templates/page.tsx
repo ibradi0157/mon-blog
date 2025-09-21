@@ -49,6 +49,8 @@ export default function EmailTemplatesPage() {
       'category_update': 'Mise à jour catégorie',
       'welcome': 'Bienvenue',
       'password_reset': 'Réinitialisation mot de passe',
+      'email_verification': 'Vérification email',
+      'email_verification_code': 'Code de vérification',
     };
     return labels[type] || type;
   };
@@ -60,6 +62,8 @@ export default function EmailTemplatesPage() {
       'category_update': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
       'welcome': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
       'password_reset': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+      'email_verification': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
+      'email_verification_code': 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
     };
     return colors[type] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
   };

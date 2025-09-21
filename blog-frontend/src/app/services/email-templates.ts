@@ -1,5 +1,5 @@
 // src/app/services/email-templates.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+import { api } from "../lib/api";
 
 export interface EmailTemplate {
   id: string;
@@ -46,125 +46,59 @@ export interface RenderedTemplate {
   text: string;
 }
 
-// Get auth token from localStorage
-const getAuthToken = (): string | null => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('token');
-  }
-  return null;
-};
+export interface SendTestPayload {
+  to: string;
+  variables?: Record<string, string>;
+}
+
+// Note: auth token and CSRF are handled globally by the shared axios client
 
 // Get all email templates
 export const getEmailTemplates = async (): Promise<EmailTemplate[]> => {
-  const token = getAuthToken();
-  
-  const response = await fetch(`${API_BASE_URL}/email-templates`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Erreur lors de la récupération des templates');
-  }
-
-  return response.json();
+  const { data } = await api.get("/email-templates");
+  return data;
 };
 
 // Get a single email template
 export const getEmailTemplate = async (id: string): Promise<EmailTemplate> => {
-  const token = getAuthToken();
-  
-  const response = await fetch(`${API_BASE_URL}/email-templates/${id}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Erreur lors de la récupération du template');
-  }
-
-  return response.json();
+  const { data } = await api.get(`/email-templates/${id}`);
+  return data;
 };
 
 // Create a new email template
-export const createEmailTemplate = async (data: CreateEmailTemplateDto): Promise<EmailTemplate> => {
-  const token = getAuthToken();
-  
-  const response = await fetch(`${API_BASE_URL}/email-templates`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    throw new Error('Erreur lors de la création du template');
-  }
-
-  return response.json();
+export const createEmailTemplate = async (payload: CreateEmailTemplateDto): Promise<EmailTemplate> => {
+  const { data } = await api.post("/email-templates", payload);
+  return data;
 };
 
 // Update an email template
-export const updateEmailTemplate = async (id: string, data: UpdateEmailTemplateDto): Promise<EmailTemplate> => {
-  const token = getAuthToken();
-  
-  const response = await fetch(`${API_BASE_URL}/email-templates/${id}`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    throw new Error('Erreur lors de la mise à jour du template');
-  }
-
-  return response.json();
+export const updateEmailTemplate = async (id: string, payload: UpdateEmailTemplateDto): Promise<EmailTemplate> => {
+  const { data } = await api.patch(`/email-templates/${id}`, payload);
+  return data;
 };
 
 // Delete an email template
 export const deleteEmailTemplate = async (id: string): Promise<void> => {
-  const token = getAuthToken();
-  
-  const response = await fetch(`${API_BASE_URL}/email-templates/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Erreur lors de la suppression du template');
-  }
+  await api.delete(`/email-templates/${id}`);
 };
 
 // Preview template with variables
 export const previewEmailTemplate = async (id: string, variables: Record<string, string>): Promise<RenderedTemplate> => {
-  const token = getAuthToken();
-  
-  const response = await fetch(`${API_BASE_URL}/email-templates/${id}/preview`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
-    },
-    body: JSON.stringify({ variables }),
+  // Send variables directly in body; CSRF handled by interceptor
+  const { data } = await api.post(`/email-templates/${id}/preview`, variables, {
+    // This is an admin-only tool; suppress noisy logs if we trigger validation errors while editing
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...( { _expectedStatuses: [400], _suppressErrorLog: true } as any ),
   });
+  return data;
+};
 
-  if (!response.ok) {
-    throw new Error('Erreur lors de la prévisualisation du template');
-  }
-
-  return response.json();
+// Send a test email using a template
+export const sendTestEmailTemplate = async (id: string, payload: SendTestPayload): Promise<{ success: boolean }> => {
+  const { data } = await api.post(`/email-templates/${id}/send-test`, payload, {
+    // suppress expected 400 errors from validation without throwing dev overlays
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ...( { _expectedStatuses: [400], _suppressErrorLog: true } as any ),
+  });
+  return data;
 };

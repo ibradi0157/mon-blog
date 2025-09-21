@@ -18,10 +18,13 @@ import { useAuth } from "../providers/AuthProvider";
 import { ThemeToggle } from './ThemeToggle';
 import { useRouter } from "next/navigation";
 import { suggestPublicArticles, type Article } from "../services/articles";
+import { useSiteSettings } from "@/app/providers/SiteSettingsProvider";
+import { toAbsoluteImageUrl } from "@/app/lib/api";
 
 export function NavBar() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const { settings } = useSiteSettings();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -111,10 +114,18 @@ export function NavBar() {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2 group">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
-                <span className="text-white font-bold text-sm">MB</span>
-              </div>
-              <span className="font-bold text-xl text-slate-900 dark:text-white">Mon Blog</span>
+              {settings?.logoUrl ? (
+                <img
+                  src={toAbsoluteImageUrl(settings.logoUrl) || settings.logoUrl}
+                  alt={settings?.siteName || "Logo"}
+                  className="w-8 h-8 object-contain rounded group-hover:scale-105 transition-transform"
+                />
+              ) : (
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <span className="text-white font-bold text-sm">MB</span>
+                </div>
+              )}
+              <span className="font-bold text-xl text-slate-900 dark:text-white">{settings?.siteName || "Mon Blog"}</span>
             </Link>
           </div>
 

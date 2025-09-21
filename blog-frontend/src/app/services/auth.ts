@@ -1,7 +1,11 @@
 import { api } from "../lib/api";
 
-export async function loginApi(email: string, password: string) {
-  const { data } = await api.post("/auth/login", { email, password });
+export async function loginApi(email: string, password: string, recaptchaToken?: string) {
+  const payload: any = { email, password };
+  if (typeof window !== "undefined" && process.env.NODE_ENV === 'production' && recaptchaToken) {
+    payload.recaptchaToken = recaptchaToken;
+  }
+  const { data } = await api.post("/auth/login", payload);
   return data as {
     success: boolean;
     access_token: string;

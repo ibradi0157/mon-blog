@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import type { HomepageConfig, Section } from '../../services/homepage';
 import type { Article, Category } from '../../services/articles';
+import { toAbsoluteImageUrl } from '../../lib/api';
 
 interface IframePreviewProps {
   config: HomepageConfig;
@@ -67,11 +68,12 @@ export function IframePreview({ config, articles, categories, device }: IframePr
     switch (section.kind) {
       case 'hero':
         const hero = section as any;
+        const heroImg = toAbsoluteImageUrl(hero.imageUrl) || hero.imageUrl;
         return `
           <section class="relative overflow-hidden bg-gradient-to-r from-blue-600 to-purple-700 text-white">
-            ${hero.imageUrl ? `
+            ${heroImg ? `
               <div class="absolute inset-0 z-0">
-                <img src="${hero.imageUrl}" alt="Hero background" class="w-full h-full object-cover">
+                <img src="${heroImg}" alt="Hero background" class="w-full h-full object-cover">
                 <div class="absolute inset-0 bg-black bg-opacity-40"></div>
               </div>
             ` : ''}
@@ -94,25 +96,28 @@ export function IframePreview({ config, articles, categories, device }: IframePr
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               ${featured.title ? `<h2 class="text-3xl font-bold text-center mb-12">${featured.title}</h2>` : ''}
               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                ${featuredArticles.map((article: any) => `
+                ${featuredArticles.map((article: any) => {
+                  const cover = toAbsoluteImageUrl(article.coverUrl) || article.coverUrl;
+                  const dateStr = new Date(article.publishedAt || article.createdAt).toLocaleDateString('fr-FR');
+                  return `
                   <article class="bg-gray-50 dark:bg-gray-800 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
                     <div class="aspect-w-16 aspect-h-9 bg-gray-200 dark:bg-gray-700">
-                      ${article.coverImageUrl ? `
-                        <img src="${article.coverImageUrl}" alt="${article.title}" class="w-full h-48 object-cover">
+                      ${cover ? `
+                        <img src="${cover}" alt="${article.title}" class="w-full h-48 object-cover">
                       ` : `
                         <div class="w-full h-48 bg-gradient-to-br from-blue-400 to-purple-500"></div>
                       `}
                     </div>
-                    <div class="p-6">
+                    <div class="px-6 p-6">
                       <h3 class="text-xl font-semibold mb-3 line-clamp-2">${article.title}</h3>
                       ${article.excerpt ? `<p class="text-gray-600 dark:text-gray-400 mb-4 line-clamp-3">${article.excerpt}</p>` : ''}
                       <div class="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
-                        <span>${article.author?.displayName || 'Auteur'}</span>
-                        <span>${new Date(article.publishedAt || article.createdAt).toLocaleDateString('fr-FR')}</span>
+                        <span>${(article.author && article.author.displayName) ? article.author.displayName : 'Auteur'}</span>
+                        <span>${dateStr}</span>
                       </div>
                     </div>
                   </article>
-                `).join('')}
+                `}).join('')}
               </div>
             </div>
           </section>
@@ -225,7 +230,7 @@ export function IframePreview({ config, articles, categories, device }: IframePr
         ref={iframeRef}
         className="w-full h-96 border-none"
         title="Homepage Preview"
-        sandbox="allow-scripts"
+        sandbox="allow-scripts allow-same-origin"
       />
     </div>
   );

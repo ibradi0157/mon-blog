@@ -11,6 +11,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { BadRequestException } from '@nestjs/common';
+import { existsSync, mkdirSync } from 'fs';
 
 @ApiTags('site-settings')
 @Controller('site-settings')
@@ -57,7 +58,15 @@ export class SiteSettingsController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: './uploads/site',
+        destination: (req, file, cb) => {
+          const dir = './uploads/site';
+          try {
+            if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+            cb(null, dir);
+          } catch (err) {
+            cb(err as any, dir);
+          }
+        },
         filename: (req, file, cb) => {
           const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, `logo-${uniqueSuffix}${extname(file.originalname)}`);
@@ -95,7 +104,15 @@ export class SiteSettingsController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: './uploads/site',
+        destination: (req, file, cb) => {
+          const dir = './uploads/site';
+          try {
+            if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+            cb(null, dir);
+          } catch (err) {
+            cb(err as any, dir);
+          }
+        },
         filename: (req, file, cb) => {
           const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, `favicon-${uniqueSuffix}${extname(file.originalname)}`);
@@ -123,6 +140,19 @@ export class SiteSettingsController {
       success: true,
       message: 'Favicon mis à jour avec succès',
       data: { faviconUrl },
+    };
+  }
+
+  @Put('admin/reset')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(RoleName.PRIMARY_ADMIN)
+  @ApiBearerAuth('bearer')
+  async resetToDefaults() {
+    const settings = await this.service.resetToDefaults();
+    return {
+      success: true,
+      message: 'Paramètres réinitialisés aux valeurs par défaut',
+      data: settings,
     };
   }
 }

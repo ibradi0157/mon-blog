@@ -2,8 +2,8 @@
 import { IsString, IsOptional, IsEnum, IsBoolean, IsArray } from 'class-validator';
 
 export class CreateEmailTemplateDto {
-  @IsEnum(['new_article', 'author_published', 'category_update', 'welcome', 'password_reset'])
-  type: 'new_article' | 'author_published' | 'category_update' | 'welcome' | 'password_reset';
+  @IsEnum(['new_article', 'author_published', 'category_update', 'welcome', 'password_reset', 'email_verification', 'email_verification_code'])
+  type: 'new_article' | 'author_published' | 'category_update' | 'welcome' | 'password_reset' | 'email_verification' | 'email_verification_code';
 
   @IsString()
   name: string;

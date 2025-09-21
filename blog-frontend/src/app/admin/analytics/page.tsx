@@ -86,6 +86,19 @@ export default function AnalyticsPage() {
   const [selectedMetric, setSelectedMetric] = useState('page_view');
   const [granularity, setGranularity] = useState<'hour' | 'day' | 'week' | 'month'>('day');
 
+  // Vérification de la variable d'environnement
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (!apiUrl || apiUrl === 'undefined') {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">Erreur de configuration :</strong>
+          <span className="block sm:inline"> La variable NEXT_PUBLIC_API_URL est absente ou incorrecte. Veuillez la définir dans votre fichier .env.local.</span>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
     if (token) {
       fetchAnalyticsData();
