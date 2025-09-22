@@ -19,6 +19,7 @@ export default function RegisterPage() {
   const shouldUseRecaptcha = Boolean(recaptchaSiteKey);
   const widgetIdRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | undefined>(undefined);
   const router = useRouter();
 
   // Validation des exigences de mot de passe
@@ -46,6 +47,15 @@ export default function RegisterPage() {
       widgetIdRef.current = grecaptcha.render(containerRef.current!, {
         sitekey: recaptchaSiteKey,
         theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+        callback: (token: string) => {
+          setRecaptchaToken(token);
+        },
+        'expired-callback': () => {
+          setRecaptchaToken(undefined);
+        },
+        'error-callback': () => {
+          setRecaptchaToken(undefined);
+        },
       });
     }
     tryRender();
@@ -98,20 +108,30 @@ export default function RegisterPage() {
               return;
             }
             try {
-              let token: string | undefined = undefined;
-              if (shouldUseRecaptcha && widgetIdRef.current !== null) {
-                const grecaptcha = (window as any).grecaptcha;
-                token = grecaptcha?.getResponse(widgetIdRef.current) || undefined;
-                if (!token) {
+              let tokenToSend: string | undefined = recaptchaToken;
+              if (shouldUseRecaptcha) {
+                if (!tokenToSend && widgetIdRef.current !== null) {
+                  const grecaptcha = (window as any).grecaptcha;
+                  tokenToSend = grecaptcha?.getResponse(widgetIdRef.current) || undefined;
+                }
+                if (!tokenToSend) {
                   setError("Veuillez cocher le reCAPTCHA");
                   return;
                 }
               }
-              await registerApi(email, password, displayName, confirmPassword, token);
-              await requestEmailCode(email, token);
+              await registerApi(email, password, displayName, confirmPassword, tokenToSend);
               router.push(`/verify-email?email=${encodeURIComponent(email)}`);
             } catch (e: any) {
-              setError(e?.response?.data?.message ?? "Échec d'inscription");
+              const msg = e?.response?.data?.message ?? "Échec d'inscription";
+              setError(msg);
+              // If backend rejected captcha, reset widget so user can retry
+              if (shouldUseRecaptcha && widgetIdRef.current !== null) {
+                try {
+                  const grecaptcha = (window as any).grecaptcha;
+                  grecaptcha?.reset?.(widgetIdRef.current);
+                } catch {}
+                setRecaptchaToken(undefined);
+              }
             }
           }}
         >

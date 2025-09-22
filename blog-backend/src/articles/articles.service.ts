@@ -39,7 +39,9 @@ export class ArticlesService {
     // Optimized query with eager loading to prevent N+1
   private createBaseQuery() {
     return this.repo.createQueryBuilder('article')
-      .leftJoinAndSelect('article.category', 'category');
+      .leftJoinAndSelect('article.category', 'category')
+      // Join stats table explicitly since Article entity has no 'stats' relation
+      .leftJoin(ArticleStats, 'stats', 'stats.articleId = article.id');
   }
 
   private async enrichWithAuthors(articles: Article[]): Promise<any[]> {
