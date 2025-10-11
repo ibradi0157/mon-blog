@@ -20,6 +20,10 @@ export function CommentList({ articleId, articleAuthorId }: { articleId: string;
   const { data, isLoading } = useQuery<{ success: boolean; data: Comment[] }>({
     queryKey: ["comments", articleId],
     queryFn: () => listComments(articleId),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    placeholderData: (prev) => prev,
   });
   const comments = data?.data ?? [];
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from "react";
 import { useParams } from "next/navigation";
 import createDOMPurify from "dompurify";
 import {
@@ -29,8 +29,8 @@ import {
   likeArticle as likeArticleStats,
   dislikeArticle as dislikeArticleStats,
 } from "../../services/stats";
-import { CommentForm } from "../../components/CommentForm";
-import { CommentList } from "../../components/CommentList";
+const LazyCommentForm = lazy(() => import("../../components/CommentForm").then(m => ({ default: m.CommentForm })));
+const LazyCommentList = lazy(() => import("../../components/CommentList").then(m => ({ default: m.CommentList })));
 import { useAuth } from "../../providers/AuthProvider";
 import { generateSlug } from "../../lib/seo";
 
@@ -65,6 +65,9 @@ export default function ArticlePage() {
     queryKey: ["public-article", id],
     queryFn: () => getPublicArticle(id),
     enabled: !!id,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   const article = articleQ.data?.data;
 
@@ -72,16 +75,67 @@ export default function ArticlePage() {
     queryKey: ["article-stats", id],
     queryFn: () => getArticleStats(id),
     enabled: !!id,
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   const s = statsQ.data?.data;
 
-  // Register a view (deduped by server logic)
+  // Register a view (server-side dedup + client TTL dedup)
   const viewedRef = useRef(false);
+  const VIEW_TTL_MS_CLIENT = 60 * 1000; // 60s: faster perceived update, still avoids bursts
+  const VIEW_PENDING_MS = 10_000; // guard duplicates within 10s (StrictMode remounts)
   useEffect(() => {
     if (!id) return;
     if (viewedRef.current) return;
+
+    // Client-side TTL to reduce network calls on quick revisits
+    let shouldView = true;
+    const pendingKey = `article:viewed:pending:${id}`;
+    try {
+      const key = `article:viewed:${id}`;
+      const raw = localStorage.getItem(key);
+      const last = raw ? parseInt(raw, 10) : 0;
+      if (last && Date.now() - last < VIEW_TTL_MS_CLIENT) {
+        shouldView = false;
+      }
+      // Also guard if a recent in-flight mark exists (handles StrictMode double-mount)
+      const p = sessionStorage.getItem(pendingKey);
+      const plast = p ? parseInt(p, 10) : 0;
+      if (plast && Date.now() - plast < VIEW_PENDING_MS) {
+        shouldView = false;
+      }
+    } catch {}
+
     viewedRef.current = true;
-    viewArticle(id).then(() => qc.invalidateQueries({ queryKey: ["article-stats", id] })).catch(() => {});
+    if (!shouldView) return;
+
+    try { sessionStorage.setItem(pendingKey, String(Date.now())); } catch {}
+
+    // Optimistic update BEFORE network, with rollback on error
+    const prevStats = qc.getQueryData<{ success: boolean; data: { views: number; likes: number; dislikes: number; commentsCount: number } }>(["article-stats", id]);
+    try {
+      qc.setQueryData<{ success: boolean; data: { views: number; likes: number; dislikes: number; commentsCount: number } }>(
+        ["article-stats", id],
+        (prev) => (
+          prev
+            ? { success: true, data: { ...prev.data, views: (prev.data.views ?? 0) + 1 } }
+            : { success: true, data: { views: 1, likes: 0, dislikes: 0, commentsCount: 0 } }
+        )
+      );
+      setViewsOverride((prev) => (typeof prev === 'number' ? prev + 1 : (typeof s?.views === 'number' ? s.views + 1 : 1)));
+    } catch {}
+
+    viewArticle(id)
+      .then(() => {
+        try { localStorage.setItem(`article:viewed:${id}`, String(Date.now())); } catch {}
+        qc.invalidateQueries({ queryKey: ["article-stats", id] });
+      })
+      .catch(() => {
+        // rollback if request failed
+        if (prevStats) qc.setQueryData(["article-stats", id], prevStats);
+      })
+      .finally(() => { try { sessionStorage.removeItem(pendingKey); } catch {} });
   }, [id, qc]);
 
   // Reaction state persisted locally for quick UI feedback
@@ -123,32 +177,71 @@ export default function ArticlePage() {
   const contentRef = useRef<HTMLDivElement | null>(null);
   const [readingProgress, setReadingProgress] = useState(0);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const metricsRef = useRef<{ top: number; total: number }>({ top: 0, total: 0 });
+
+  const computeMetrics = useCallback(() => {
+    const el = articleRef.current;
+    if (!el) return;
+    const rectTop = el.getBoundingClientRect().top + window.scrollY;
+    const total = el.offsetHeight - window.innerHeight;
+    metricsRef.current = { top: rectTop, total: total > 0 ? total : 0 };
+  }, []);
 
   useEffect(() => {
-    const onScroll = () => {
+    let ticking = false;
+    const recalc = () => {
       const el = articleRef.current;
-      if (!el) return;
-      const rectTop = el.getBoundingClientRect().top + window.scrollY;
-      const total = el.offsetHeight - window.innerHeight;
-      const scrolled = window.scrollY - rectTop;
+      if (!el) {
+        ticking = false;
+        return;
+      }
+      const { top, total } = metricsRef.current;
+      const scrolled = window.scrollY - top;
       const ratio = clamp(total > 0 ? scrolled / total : 0, 0, 1);
       setReadingProgress(Math.round(ratio * 100));
       setShowScrollTop(window.scrollY > 300);
+      ticking = false;
     };
+    const onScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(recalc);
+        ticking = true;
+      }
+    };
+    computeMetrics();
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    const onResize = () => { computeMetrics(); onScroll(); };
+    window.addEventListener("resize", onResize);
     return () => {
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("resize", onResize);
     };
-  }, []);
+  }, [computeMetrics]);
 
   // TOC and heading anchors
   const [headings, setHeadings] = useState<Heading[]>([]);
+  const isRefreshingHeadings = useRef(false);
   const [showToc, setShowToc] = useState(false);
   const [activeHeading, setActiveHeading] = useState<string | null>(null);
   const scrollOffset = 80; // account for fixed progress bar / headers
+  const headingsInitialized = useRef(false);
+
+  // requestIdleCallback polyfill
+  const requestIdle = useCallback((cb: () => void) => {
+    try {
+      const anyWin = window as any;
+      if (typeof anyWin.requestIdleCallback === 'function') return anyWin.requestIdleCallback(cb, { timeout: 600 });
+    } catch {}
+    return window.setTimeout(cb, 200);
+  }, []);
+  const cancelIdle = useCallback((id: number) => {
+    try {
+      const anyWin = window as any;
+      if (typeof anyWin.cancelIdleCallback === 'function') return anyWin.cancelIdleCallback(id);
+    } catch {}
+    clearTimeout(id);
+  }, []);
 
   const sanitizedContent = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -181,13 +274,22 @@ export default function ArticlePage() {
     const root = contentRef.current;
     if (!root) return;
 
+    // Use a broad selector and filter in JS to avoid expensive :has()
     const elements = Array.from(
-      root.querySelectorAll("h1, h2, h3, h4, h5, h6, p:has(> strong:first-child)")
+      root.querySelectorAll("h1, h2, h3, h4, h5, h6, p")
     ) as HTMLElement[];
 
     const seen = new Map<string, number>();
     const hs: Heading[] = [];
 
+    // Avoid heavy work on extremely large contents
+    if (elements.length > 400) {
+      setHeadings((prev) => (prev.length ? [] : prev));
+      isRefreshingHeadings.current = false;
+      return;
+    }
+
+    isRefreshingHeadings.current = true;
     for (const el of elements) {
       let text = "";
       let level: Heading['level'] = 2;
@@ -196,9 +298,13 @@ export default function ArticlePage() {
         text = (el.textContent || "").trim();
         level = parseInt(el.tagName.substring(1), 10) as Heading['level'];
       } else if (el.tagName.toLowerCase() === 'p') {
-        const strong = el.querySelector('strong:first-child');
-        text = (strong?.textContent || el.textContent || "").trim();
-        level = 2;
+        const first = el.firstElementChild as HTMLElement | null;
+        if (first && first.tagName.toLowerCase() === 'strong') {
+          text = (first.textContent || el.textContent || "").trim();
+          level = 2;
+        } else {
+          continue; // skip normal paragraphs
+        }
       }
 
       if (!text) continue;
@@ -208,39 +314,81 @@ export default function ArticlePage() {
       seen.set(base, n + 1);
       const idVal = n ? `${base}-${n}` : base;
       
-      el.id = idVal;
-      el.setAttribute('tabindex', '-1');
-      el.style.scrollMarginTop = `${scrollOffset + 12}px`;
+      if (el.id !== idVal) el.id = idVal;
+      if (el.getAttribute('tabindex') !== '-1') el.setAttribute('tabindex', '-1');
+      const desiredScrollMargin = `${scrollOffset + 12}px`;
+      if (el.style.scrollMarginTop !== desiredScrollMargin) {
+        el.style.scrollMarginTop = desiredScrollMargin;
+      }
 
       hs.push({ id: idVal, text, level });
     }
 
-    setHeadings(hs);
+    setHeadings((prev) => {
+      if (prev.length === hs.length && prev.every((p, i) => p.id === hs[i].id && p.text === hs[i].text && p.level === hs[i].level)) {
+        return prev;
+      }
+      return hs;
+    });
+    isRefreshingHeadings.current = false;
   }, [scrollOffset]);
 
   useEffect(() => {
-    // After content renders, compute headings — schedule after paint to ensure DOM updated
-    const id = requestAnimationFrame(() => {
-      refreshHeadings();
-      // If URL has a hash, scroll to it after headings are set
-      const hash = typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
-      if (hash) {
-        setTimeout(() => scrollToAnchor(hash), 0);
-      }
-    });
-    return () => cancelAnimationFrame(id);
-  }, [sanitizedContent, refreshHeadings, scrollToAnchor]);
+    // Compute headings lazily: only when TOC opened, or during idle if small document
+    let rafId = 0 as number | 0;
+    let idleId = 0 as unknown as number;
+    const maybeInit = () => {
+      if (headingsInitialized.current) return;
+      rafId = requestAnimationFrame(() => {
+        const root = contentRef.current;
+        const count = root ? root.querySelectorAll('h1, h2, h3, h4, h5, h6, p').length : 0;
+        if (count && count <= 200) {
+          refreshHeadings();
+          headingsInitialized.current = true;
+          const hash = typeof window !== 'undefined' ? window.location.hash.replace('#', '') : '';
+          if (hash) setTimeout(() => scrollToAnchor(hash), 0);
+        } else {
+          // Defer to idle for large docs
+          idleId = requestIdle(() => {
+            if (!headingsInitialized.current) {
+              refreshHeadings();
+              headingsInitialized.current = true;
+            }
+          }) as unknown as number;
+        }
+      });
+    };
+    maybeInit();
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      if (idleId) cancelIdle(idleId);
+    };
+  }, [sanitizedContent, refreshHeadings, scrollToAnchor, requestIdle, cancelIdle]);
 
   useEffect(() => {
-    // Observe content mutations (e.g., images load, dynamic embeds) and refresh headings
+    // Attach observer only when TOC is visible (user intent)
+    if (!showToc) return;
     const root = contentRef.current || articleRef.current;
     if (!root) return;
+    let rafId = 0 as number | 0;
+    const lastRef = { t: 0 };
     const obs = new MutationObserver(() => {
-      refreshHeadings();
+      if (isRefreshingHeadings.current) return;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const now = Date.now();
+        if (now - lastRef.t < 200) return; // throttle to every 200ms max
+        lastRef.t = now;
+        refreshHeadings();
+        computeMetrics();
+      });
     });
-    obs.observe(root, { subtree: true, childList: true, characterData: true });
-    return () => obs.disconnect();
-  }, [refreshHeadings]);
+    obs.observe(root, { subtree: true, childList: true });
+    return () => {
+      obs.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [showToc, refreshHeadings, computeMetrics]);
 
   // Highlight effect for TOC clicks
   useEffect(() => {
@@ -293,6 +441,17 @@ export default function ArticlePage() {
   const reacting = likeMut.isPending || dislikeMut.isPending;
   const showNumber = (n?: number) => (typeof n === "number" ? n : "-");
   const readingTime = estimateReadingTime(article?.content || "");
+
+  const [showComments, setShowComments] = useState(false);
+  const [viewsOverride, setViewsOverride] = useState<number | undefined>(undefined);
+
+  // Sync local override with server value when it increases
+  useEffect(() => {
+    const v = s?.views;
+    if (typeof v === 'number') {
+      setViewsOverride((prev) => (typeof prev === 'number' ? Math.max(prev, v) : v));
+    }
+  }, [s?.views]);
 
   
 
@@ -503,20 +662,34 @@ export default function ArticlePage() {
           <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
             <div className="flex items-center space-x-1">
               <Eye className="w-4 h-4" />
-              <span>{showNumber(s?.views)} vues</span>
+              <span>{showNumber(typeof viewsOverride === 'number' ? viewsOverride : s?.views)} vues</span>
             </div>
             <div className="flex items-center space-x-1">
               <MessageCircle className="w-4 h-4" />
               <span>{showNumber(s?.commentsCount)} commentaires</span>
             </div>
           </div>
+
+        {/* Close Article Actions container */}
         </div>
 
         {/* Comments Section */}
-        <section className="space-y-6">
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Commentaires</h2>
-          <CommentForm articleId={id} />
-          <CommentList articleId={id} articleAuthorId={article.authorId} />
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Commentaires</h2>
+            <button
+              onClick={() => setShowComments((v) => !v)}
+              className="px-3 py-1.5 rounded border border-slate-300 dark:border-slate-600 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
+              {showComments ? "Masquer" : `Afficher (${showNumber(s?.commentsCount)})`}
+            </button>
+          </div>
+          {showComments && (
+            <Suspense fallback={<div className="space-y-3"><div className="h-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" /><div className="h-8 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" /></div>}>
+              <LazyCommentForm articleId={id} />
+              <LazyCommentList articleId={id} articleAuthorId={article.authorId} />
+            </Suspense>
+          )}
         </section>
       </div>
     </div>
