@@ -573,3 +573,147 @@ body {
 .dark .ql-snow .ql-picker-label {
   color: rgb(100 116 139);
 }
+
+/* Novel Editor Styles */
+:root {
+  --novel-black: #000000;
+  --novel-highlight-default: #ffffff;
+  --novel-highlight-purple: #f6f3f8;
+  --novel-highlight-red: #fdebec;
+  --novel-highlight-yellow: #fbf4a2;
+  --novel-highlight-blue: #c1ecf9;
+  --novel-highlight-green: #acf79f;
+  --novel-highlight-orange: #faebdd;
+  --novel-highlight-pink: #faf1f5;
+  --novel-highlight-gray: #f1f1ef;
+}
+
+.ProseMirror {
+  outline: none;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: rgb(156 163 175);
+  pointer-events: none;
+  height: 0;
+}
+
+.ProseMirror .is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: rgb(156 163 175);
+  pointer-events: none;
+  height: 0;
+}
+
+/* Image placeholder styles */
+.img-placeholder {
+  position: relative;
+}
+
+.img-placeholder img {
+  opacity: 0.5;
+}
+
+/* Slash command menu */
+.slash-command {
+  z-index: 50;
+}
+
+/* Bubble menu */
+.bubble-menu {
+  z-index: 50;
+}
+
+/* Task list styles */
+.ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding: 0;
+}
+
+.ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+}
+
+.ProseMirror ul[data-type="taskList"] li > label {
+  flex: 0 0 auto;
+  margin-right: 0.5rem;
+  user-select: none;
+}
+
+.ProseMirror ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+}
+
+/* YouTube embed responsive */
+.ProseMirror iframe {
+  border: 0;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+
+/* Code block syntax highlighting */
+.ProseMirror pre {
+  background: rgb(15 23 42);
+  color: rgb(241 245 249);
+  font-family: 'JetBrainsMono', monospace;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+}
+
+.ProseMirror pre code {
+  color: inherit;
+  padding: 0;
+  background: none;
+  font-size: 0.875rem;
+}
+
+/* Table styles */
+.ProseMirror table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+.ProseMirror td,
+.ProseMirror th {
+  min-width: 1em;
+  border: 2px solid rgb(226 232 240);
+  padding: 3px 5px;
+  vertical-align: top;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.ProseMirror th {
+  font-weight: bold;
+  text-align: left;
+  background-color: rgb(248 250 252);
+}
+
+.ProseMirror .selectedCell:after {
+  z-index: 2;
+  position: absolute;
+  content: "";
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(200, 200, 255, 0.4);
+  pointer-events: none;
+}
+
+.dark .ProseMirror td,
+.dark .ProseMirror th {
+  border-color: rgb(51 65 85);
+}
+
+.dark .ProseMirror th {
+  background-color: rgb(30 41 59);
+}

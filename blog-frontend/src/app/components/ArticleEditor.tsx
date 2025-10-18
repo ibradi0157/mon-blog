@@ -1,4 +1,6 @@
-import { Editor } from './EnhancedEditor';
+'use client';
+
+import { NovelEditor } from './NovelEditor';
 import { useState } from 'react';
 
 interface ArticleEditorProps {
@@ -33,12 +35,11 @@ export function ArticleEditor({
 
   return (
     <div className={className}>
-      <Editor
-        value={content}
+      <NovelEditor
+        initialContent={content}
         onChange={setContent}
         onImageUpload={handleImageUpload}
         placeholder={placeholder}
-        maxLength={maxLength}
         className="min-h-[400px]"
       />
       
