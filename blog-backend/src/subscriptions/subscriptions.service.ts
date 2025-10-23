@@ -108,6 +108,32 @@ export class SubscriptionsService {
     await this.subscriptionRepository.save(subscription);
   }
 
+  async deleteSubscriptionByTarget(userId: string, type: 'author' | 'category', targetId: string): Promise<void> {
+    const subscription = await this.subscriptionRepository.findOne({
+      where: { userId, type, targetId, isActive: true }
+    });
+
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found');
+    }
+
+    subscription.isActive = false;
+    await this.subscriptionRepository.save(subscription);
+  }
+
+  async isSubscribed(userId: string, type: 'author' | 'category', targetId: string): Promise<boolean> {
+    const subscription = await this.subscriptionRepository.findOne({
+      where: { userId, type, targetId, isActive: true }
+    });
+    return !!subscription;
+  }
+
+  async getFollowerCount(authorId: string): Promise<number> {
+    return await this.subscriptionRepository.count({
+      where: { type: 'author', targetId: authorId, isActive: true }
+    });
+  }
+
   async getSubscribersForArticle(article: Article): Promise<User[]> {
     const subscribers = new Set<string>();
 

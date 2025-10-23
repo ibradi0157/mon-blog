@@ -28,10 +28,13 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { EmailTemplatesModule } from './email-templates/email-templates.module';
 import { FooterModule } from './footer/footer.module';
 import { UserPreferencesModule } from './user-preferences/user-preferences.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { NewsletterModule } from './newsletter/newsletter.module';
 // import { CaptchaModule } from './captcha/captcha.module';
 import { CorrelationIdMiddleware } from './common/logging/correlation-id.middleware';
 import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
 import { LoggingInterceptor } from './common/logging/logging.interceptor';
+import { EditorUploadsModule } from './editor-uploads/editor-uploads.module';
 
 @Module({
   imports: [    
@@ -81,6 +84,9 @@ import { LoggingInterceptor } from './common/logging/logging.interceptor';
     EmailTemplatesModule,
     FooterModule,
     UserPreferencesModule,
+    NotificationsModule,
+    NewsletterModule,
+    EditorUploadsModule,
   // CaptchaModule,
     BaseThrottlerModule.forRoot({ throttlers: [{ ttl: 60_000, limit: 100 }] })
    

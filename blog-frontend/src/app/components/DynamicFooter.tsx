@@ -78,32 +78,32 @@ export function DynamicFooter() {
   // Show default footer while loading or on error
   if (footerQuery.isLoading || footerQuery.isError || !footer) {
     return (
-      <footer className="border-t border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
+      <footer className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Mon Blog</h3>
-              <p className="text-slate-600 dark:text-slate-400 mb-4 max-w-md">
+              <p className="text-slate-600 dark:text-slate-300 mb-4 max-w-md">
                 Une plateforme moderne pour partager des idées, découvrir du contenu de qualité et connecter avec une communauté passionnée.
               </p>
             </div>
             <div>
               <h4 className="text-sm font-semibold text-slate-900 dark:text-white mb-4">Navigation</h4>
-              <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                <li><Link href="/" className="hover:text-slate-900 dark:hover:text-white transition-colors">Accueil</Link></li>
-                <li><Link href="/articles" className="hover:text-slate-900 dark:hover:text-white transition-colors">Articles</Link></li>
-                <li><Link href="/categories" className="hover:text-slate-900 dark:hover:text-white transition-colors">Catégories</Link></li>
+              <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+                <li><Link href="/" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Accueil</Link></li>
+                <li><Link href="/articles" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Articles</Link></li>
+                <li><Link href="/categories" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Catégories</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="text-sm font-semibold text-slate-900 dark:text-white mb-4">Légal</h4>
-              <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                <li><Link href="/privacy" className="hover:text-slate-900 dark:hover:text-white transition-colors">Confidentialité</Link></li>
-                <li><Link href="/terms" className="hover:text-slate-900 dark:hover:text-white transition-colors">Conditions</Link></li>
+              <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-300">
+                <li><Link href="/privacy" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Confidentialité</Link></li>
+                <li><Link href="/terms" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">Conditions</Link></li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-slate-200 dark:border-slate-700 mt-8 pt-8 text-center text-sm text-slate-600 dark:text-slate-400">
+          <div className="border-t border-slate-200 dark:border-slate-700 mt-8 pt-8 text-center text-sm text-slate-500 dark:text-slate-400">
             <p>&copy; {new Date().getFullYear()} Mon Blog. Tous droits réservés.</p>
           </div>
         </div>
@@ -114,22 +114,36 @@ export function DynamicFooter() {
   // Render dynamic footer
   return (
     <footer
-      className="border-t border-slate-200 dark:border-slate-700 backdrop-blur-sm bg-[var(--footer-bg)] text-[var(--footer-fg)] dark:bg-[var(--footer-bg-dark)] dark:text-[var(--footer-fg-dark)]"
-      style={styleVars}
+      className="border-t border-slate-200 dark:border-slate-700 backdrop-blur-sm transition-colors duration-300"
+      style={{
+        ...styleVars,
+        backgroundColor: 'var(--footer-bg)',
+        color: 'var(--footer-fg)',
+      }}
       data-dynamic-footer="true"
     >
+      <style jsx>{`
+        footer[data-dynamic-footer="true"] {
+          background-color: var(--footer-bg, white);
+          color: var(--footer-fg, rgb(71, 85, 105));
+        }
+        .dark footer[data-dynamic-footer="true"] {
+          background-color: var(--footer-bg-dark, rgb(15, 23, 42));
+          color: var(--footer-fg-dark, rgb(226, 232, 240));
+        }
+      `}</style>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Main description */}
           <div className="col-span-1 md:col-span-2">
-            <h3 className="text-lg font-semibold mb-4">{footer.title}</h3>
+            <h3 className="text-lg font-semibold mb-4 opacity-100">{footer.title}</h3>
             <p className="mb-4 max-w-md opacity-90">{footer.description}</p>
           </div>
           
           {/* Dynamic sections */}
           {footer.sections.map((section: FooterSection, index: number) => (
             <div key={index}>
-              <h4 className="text-sm font-semibold mb-4">{section.title}</h4>
+              <h4 className="text-sm font-semibold mb-4 opacity-100">{section.title}</h4>
               <ul className="space-y-2 text-sm opacity-80">
                 {section.links.map((link: FooterLink, linkIndex: number) => (
                   <li key={linkIndex}>
@@ -138,7 +152,7 @@ export function DynamicFooter() {
                         href={link.href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hover:opacity-100 transition-opacity flex items-center"
+                        className="hover:opacity-100 hover:underline transition-all flex items-center"
                       >
                         {link.text}
                         <ExternalLink className="w-3 h-3 ml-1" />
@@ -146,7 +160,7 @@ export function DynamicFooter() {
                     ) : (
                       <Link 
                         href={link.href} 
-                        className="hover:opacity-100 transition-opacity"
+                        className="hover:opacity-100 hover:underline transition-all"
                       >
                         {link.text}
                       </Link>

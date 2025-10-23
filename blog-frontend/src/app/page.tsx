@@ -1,18 +1,31 @@
 "use client";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, Clock, User, Calendar, ArrowRight, TrendingUp, BookOpen } from "lucide-react";
+import { Search, Clock, User, Calendar, ArrowRight, TrendingUp, BookOpen, CheckCircle2, AlertCircle } from "lucide-react";
 import { listPublicArticles, type Article } from "./services/articles";
 import { getPublicHomepage } from "./services/homepage";
 import type { Section } from "./services/homepage";
 import { ArticleCard } from "./components/ArticleCard";
 import { toAbsoluteImageUrl } from "./lib/api";
+import { subscribeNewsletter } from "./services/newsletter";
+import { FeaturedArticlesCarousel } from "./components/FeaturedArticlesCarousel";
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterSuccess, setNewsletterSuccess] = useState(false);
+  
+  const newsletterMutation = useMutation({
+    mutationFn: (email: string) => subscribeNewsletter(email),
+    onSuccess: () => {
+      setNewsletterSuccess(true);
+      setNewsletterEmail("");
+      setTimeout(() => setNewsletterSuccess(false), 5000);
+    },
+  });
 
   const hpQ = useQuery({
     queryKey: ["public-homepage"],
@@ -160,6 +173,7 @@ export default function Home() {
                 key={article.id}
                 id={article.id}
                 title={article.title}
+                excerpt={article.excerpt}
                 coverUrl={article.coverUrl}
                 thumbnails={article.thumbnails}
                 createdAt={article.createdAt}
@@ -193,16 +207,54 @@ export default function Home() {
             <p className="text-blue-100 mb-8 max-w-2xl mx-auto">
               Recevez nos derniers articles directement dans votre boîte mail
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center max-w-md mx-auto">
-              <input
-                type="email"
-                placeholder="Votre adresse email"
-                className="w-full px-4 py-3 bg-white/90 dark:bg-slate-900/80 backdrop-blur-sm border border-white/20 dark:border-slate-700/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400"
-              />
-              <button className="px-6 py-3 rounded-lg font-semibold whitespace-nowrap transition-all shadow-md shadow-black/10 bg-gradient-to-r from-sky-400 to-indigo-500 text-white hover:shadow-lg hover:brightness-110">
-                S'abonner
-              </button>
-            </div>
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (newsletterEmail && newsletterEmail.includes('@')) {
+                  newsletterMutation.mutate(newsletterEmail);
+                }
+              }}
+              className="max-w-md mx-auto"
+            >
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <input
+                  type="email"
+                  placeholder="Votre adresse email"
+                  value={newsletterEmail}
+                  onChange={(e) => setNewsletterEmail(e.target.value)}
+                  required
+                  disabled={newsletterMutation.isPending || newsletterSuccess}
+                  className="w-full px-4 py-3 bg-white/90 dark:bg-slate-900/80 backdrop-blur-sm border border-white/20 dark:border-slate-700/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-white/50 focus:border-transparent text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 disabled:opacity-60"
+                />
+                <button 
+                  type="submit"
+                  disabled={newsletterMutation.isPending || newsletterSuccess || !newsletterEmail}
+                  className="px-6 py-3 rounded-lg font-semibold whitespace-nowrap transition-all shadow-md shadow-black/10 bg-gradient-to-r from-sky-400 to-indigo-500 text-white hover:shadow-lg hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {newsletterMutation.isPending ? (
+                    <>Envoi...</>
+                  ) : newsletterSuccess ? (
+                    <><CheckCircle2 className="w-5 h-5" /> Inscrit !</>
+                  ) : (
+                    <>S'abonner</>
+                  )}
+                </button>
+              </div>
+              {newsletterMutation.isError && (
+                <div className="mt-4 flex items-center justify-center gap-2 text-red-100 bg-red-500/20 backdrop-blur-sm px-4 py-2 rounded-lg">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-sm">
+                    {(newsletterMutation.error as any)?.response?.data?.message || "Une erreur s'est produite"}
+                  </span>
+                </div>
+              )}
+              {newsletterSuccess && (
+                <div className="mt-4 flex items-center justify-center gap-2 text-green-100 bg-green-500/20 backdrop-blur-sm px-4 py-2 rounded-lg">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span className="text-sm">Merci ! Vous êtes maintenant inscrit à notre newsletter.</span>
+                </div>
+              )}
+            </form>
           </div>
         </div>
       </section>
@@ -252,6 +304,7 @@ function renderSection(s: Section) {
               key={article.id}
               id={article.id}
               title={article.title}
+              excerpt={article.excerpt}
               coverUrl={article.coverUrl}
               thumbnails={article.thumbnails}
               createdAt={article.createdAt}
@@ -262,6 +315,39 @@ function renderSection(s: Section) {
             />
           ))}
         </div>
+      </section>
+    );
+  }
+
+  if (s.kind === "featuredCarousel") {
+    const items = s.articles || [];
+    if (items.length === 0) return null;
+    
+    // Convertir les articles au format attendu par FeaturedArticlesCarousel
+    const carouselArticles = items.map((article) => ({
+      id: article.id,
+      title: article.title,
+      excerpt: article.excerpt ?? undefined,
+      coverUrl: article.coverUrl ?? undefined,
+      publishedAt: article.createdAt || article.updatedAt || new Date().toISOString(),
+      viewCount: undefined,
+      likeCount: article.likes,
+      author: article.author ? {
+        displayName: article.author.displayName,
+        avatarUrl: article.author.avatarUrl ?? undefined,
+      } : undefined,
+      tags: article.category?.name ? [article.category.name] : [],
+    }));
+
+    return (
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        {s.title && <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-12 text-center">{s.title}</h2>}
+        <FeaturedArticlesCarousel
+          articles={carouselArticles}
+          transition={s.transition}
+          speed={s.speed}
+          autoPlay={s.autoPlay}
+        />
       </section>
     );
   }

@@ -16,7 +16,7 @@ import {
   type Category,
 } from "@/app/services/articles";
 import { getArticleStats } from "@/app/services/stats";
-import { RichTextEditor } from "@/app/components/RichTextEditor";
+import { ProEditor } from "@/app/components/ProEditor";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { useMemberArticleEdit } from "@/app/member/articles/hooks/useMemberArticleEdit";
 import { Input } from "@/app/components/ui/Input";
@@ -153,11 +153,11 @@ export default function EditArticlePage() {
             </div>
             <div>
               <label className="block text-sm mb-1">Contenu</label>
-              <RichTextEditor
+              <ProEditor
                 key={id}
-                value={edit.content}
+                content={edit.content}
                 onChange={edit.setContent}
-                readOnly={isPublished}
+                editable={!isPublished}
                 onImageUpload={isPublished ? undefined : edit.onImageUpload}
                 onFileUpload={async (file: File) => {
                   const form = new FormData();
@@ -168,7 +168,7 @@ export default function EditArticlePage() {
                   return { url: data.url as string, name: data.name as string, mime: data.mime as string, size: data.size as number };
                 }}
                 className="min-h-[60vh] sm:min-h-[400px]"
-                showWordCount
+                showStats
               />
             </div>
             {!isPublished && (

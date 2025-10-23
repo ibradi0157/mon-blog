@@ -225,16 +225,16 @@ export default function CalculatorPage() {
   }, [handleNumber, handleOperation, handleEquals, handleDecimal, handleClear, handleBackspace]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-950 dark:to-slate-900 py-8 transition-colors duration-300">
       <div className="container mx-auto px-4 max-w-6xl">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
             <CalculatorIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
               Calculatrice Avancée
             </h1>
           </div>
-          <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+          <p className="text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
             Calculatrice scientifique avec fonctions avancées, historique des calculs et support clavier complet.
           </p>
         </div>
@@ -251,9 +251,9 @@ export default function CalculatorPage() {
               </CardHeader>
               <CardContent>
                 {/* Display */}
-                <div className="mb-6 p-4 bg-gray-900 dark:bg-gray-800 rounded-lg">
+                <div className="mb-6 p-4 bg-slate-900 dark:bg-slate-950 rounded-lg border border-slate-700 dark:border-slate-600">
                   <div className="text-right">
-                    <div className="text-sm text-gray-400 mb-1 min-h-[1.25rem]">
+                    <div className="text-sm text-slate-400 dark:text-slate-500 mb-1 min-h-[1.25rem]">
                       {state.previousValue !== null && state.operation && (
                         `${state.previousValue} ${state.operation}`
                       )}
@@ -357,14 +357,14 @@ export default function CalculatorPage() {
               <CardContent>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {state.history.length === 0 ? (
-                    <p className="text-gray-500 dark:text-gray-400 text-sm italic">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm italic">
                       Aucun calcul effectué
                     </p>
                   ) : (
                     state.history.map((calculation, index) => (
                       <div
                         key={index}
-                        className="p-2 bg-gray-50 dark:bg-gray-700 rounded text-sm font-mono break-all"
+                        className="p-2 bg-slate-50 dark:bg-slate-800 rounded text-sm font-mono break-all text-slate-900 dark:text-slate-100"
                       >
                         {calculation}
                       </div>

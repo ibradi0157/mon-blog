@@ -33,6 +33,8 @@ const LazyCommentForm = lazy(() => import("../../components/CommentForm").then(m
 const LazyCommentList = lazy(() => import("../../components/CommentList").then(m => ({ default: m.CommentList })));
 import { useAuth } from "../../providers/AuthProvider";
 import { generateSlug } from "../../lib/seo";
+import { ArticleSubscriptionWidget } from '@/app/components/ArticleSubscriptionWidget';
+
 
 // Utils
 function clamp(n: number, min: number, max: number) {
@@ -83,7 +85,7 @@ export default function ArticlePage() {
 
   // Register a view (server-side dedup + client TTL dedup)
   const viewedRef = useRef(false);
-  const VIEW_TTL_MS_CLIENT = 60 * 1000; // 60s: faster perceived update, still avoids bursts
+  const VIEW_TTL_MS_CLIENT = 3 * 60 * 60 * 1000; // 3h: aligned with backend dedup to prevent double counting
   const VIEW_PENDING_MS = 10_000; // guard duplicates within 10s (StrictMode remounts)
   useEffect(() => {
     if (!id) return;
@@ -672,6 +674,16 @@ export default function ArticlePage() {
 
         {/* Close Article Actions container */}
         </div>
+
+        {/* Subscription Widget */}
+        {article && article.author && (
+          <ArticleSubscriptionWidget
+            authorId={article.author.id}
+            authorName={article.author.displayName}
+            categoryId={article.category?.id}
+            categoryName={article.category?.name}
+          />
+        )}
 
         {/* Comments Section */}
         <section className="space-y-4">

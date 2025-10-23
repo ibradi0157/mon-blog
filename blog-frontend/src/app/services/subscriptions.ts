@@ -90,3 +90,98 @@ export async function deleteSubscription(subscriptionId: string): Promise<void> 
     throw new Error(errorData.message || `Failed to delete subscription: ${response.statusText}`);
   }
 }
+
+// Simplified follow/unfollow for authors
+export async function followAuthor(authorId: string): Promise<Subscription> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/follow/author/${authorId}`, {
+    method: 'POST',
+    headers: await getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || `Failed to follow author: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function unfollowAuthor(authorId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/follow/author/${authorId}`, {
+    method: 'DELETE',
+    headers: await getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || `Failed to unfollow author: ${response.statusText}`);
+  }
+}
+
+export async function checkFollowingAuthor(authorId: string): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/check/author/${authorId}`, {
+    method: 'GET',
+    headers: await getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    return false;
+  }
+
+  const data = await response.json();
+  return data.isFollowing;
+}
+
+export async function getFollowerCount(authorId: string): Promise<number> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/followers/author/${authorId}`, {
+    method: 'GET',
+  });
+
+  if (!response.ok) {
+    return 0;
+  }
+
+  const data = await response.json();
+  return data.count;
+}
+
+// Category subscriptions
+export async function subscribeToCategory(categoryId: string): Promise<Subscription> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/follow/category/${categoryId}`, {
+    method: 'POST',
+    headers: await getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || `Failed to subscribe: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function unsubscribeFromCategory(categoryId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/follow/category/${categoryId}`, {
+    method: 'DELETE',
+    headers: await getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || `Failed to unsubscribe: ${response.statusText}`);
+  }
+}
+
+export async function checkCategorySubscription(categoryId: string): Promise<boolean> {
+  const response = await fetch(`${API_BASE_URL}/subscriptions/check/category/${categoryId}`, {
+    method: 'GET',
+    headers: await getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    return false;
+  }
+
+  const data = await response.json();
+  return data.isSubscribed;
+}

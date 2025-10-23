@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createArticle, updateArticle, listCategories, type Category, uploadCover, uploadGenericContentImage } from "@/app/services/articles";
-import { RichTextEditor } from "@/app/components/RichTextEditor";
+import { ProEditor } from "@/app/components/ProEditor";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { toAbsoluteImageUrl } from "@/app/lib/api";
 
@@ -12,6 +12,7 @@ export default function NewArticlePage() {
   const [title, setTitle] = useState("");
   const [categoryId, setCategoryId] = useState<string | "">("");
   const [content, setContent] = useState("");
+  const [excerpt, setExcerpt] = useState("");
   const [cover, setCover] = useState<File | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const serverSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -36,10 +37,11 @@ export default function NewArticlePage() {
     try {
       const raw = typeof window !== "undefined" ? localStorage.getItem(draftKey) : null;
       if (raw) {
-        const d = JSON.parse(raw) as { title?: string; content?: string; categoryId?: string };
+        const d = JSON.parse(raw) as { title?: string; content?: string; categoryId?: string; excerpt?: string };
         if (d.title) setTitle(d.title);
         if (typeof d.categoryId === "string") setCategoryId(d.categoryId);
         if (d.content) setContent(d.content);
+        if (d.excerpt) setExcerpt(d.excerpt);
       }
     } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -52,7 +54,7 @@ export default function NewArticlePage() {
       try {
         localStorage.setItem(
           draftKey,
-          JSON.stringify({ title, content, categoryId, updatedAt: Date.now() })
+          JSON.stringify({ title, content, excerpt, categoryId, updatedAt: Date.now() })
         );
       } catch {}
     }, 600);
@@ -64,7 +66,7 @@ export default function NewArticlePage() {
   // Server-side autosave: create draft automatically once valid, then debounce updates
   const createSilent = useMutation({
     mutationFn: async () => {
-      const res = await createArticle({ title, content, isPublished: false, categoryId: categoryId || undefined });
+    const res = await createArticle({ title, content, excerpt: excerpt || undefined, isPublished: false, categoryId: categoryId || undefined });
       return res as any;
     },
     onSuccess: async (res: any) => {
@@ -81,7 +83,7 @@ export default function NewArticlePage() {
 
   const updateSilent = useMutation({
     mutationFn: async (id: string) => {
-      await updateArticle(id, { title, content, categoryId: categoryId || null });
+      await updateArticle(id, { title, content, excerpt: excerpt || null, categoryId: categoryId || null });
     }
   });
 
@@ -110,7 +112,7 @@ export default function NewArticlePage() {
   }, [title, content, categoryId, serverId, createSilent.isPending]);
 
   const mCreate = useMutation({
-    mutationFn: (isPublished: boolean) => createArticle({ title, content, isPublished, categoryId: categoryId || undefined }),
+    mutationFn: (isPublished: boolean) => createArticle({ title, content, excerpt: excerpt || undefined, isPublished, categoryId: categoryId || undefined }),
     onSuccess: async (res) => {
       const id = (res as any)?.data?.id as string | undefined;
       if (id && cover) {
@@ -167,8 +169,8 @@ export default function NewArticlePage() {
         </div>
         <div>
           <label className="block text-sm mb-1">Contenu</label>
-          <RichTextEditor
-            value={content}
+          <ProEditor
+            content={content}
             onChange={setContent}
             onImageUpload={async (file: File) => {
               const res = await uploadGenericContentImage(file);
@@ -181,11 +183,10 @@ export default function NewArticlePage() {
               const resp = await fetch("/api/upload-any", { method: "POST", body: form });
               if (!resp.ok) throw new Error("Upload fichier échoué");
               const data = await resp.json();
-              // For attachments we can return relative URL; editor will insert a download card
               return { url: data.url as string, name: data.name as string, mime: data.mime as string, size: data.size as number };
             }}
             className="min-h-[60vh] sm:min-h-[400px]"
-            showWordCount
+            showStats
           />
         </div>
       </div>

@@ -70,6 +70,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
       <div className="flex">
         {/* Sidebar */}
         <aside
+          style={{ WebkitOverflowScrolling: 'touch' }}
           className={`
             fixed inset-y-0 left-0 z-40 w-72 -translate-x-full md:translate-x-0 md:static
             ${sidebarCollapsed ? 'md:w-16' : 'md:w-64'}
@@ -178,8 +179,8 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
           />
         )}
 
-        {/* Main Content */}
-        <main className="flex-1 min-h-screen relative">
+  {/* Main Content */}
+  <main className="flex-1 min-h-screen relative pt-24 md:pt-28">
           {/* Top Bar */}
           <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur border-b border-slate-200/60 dark:border-slate-700/60 px-3 md:px-6 py-4 safe-px supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-slate-800/60">
             <div className="flex items-center justify-between">

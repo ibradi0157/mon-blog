@@ -28,6 +28,8 @@ export interface FooterData {
   };
   backgroundColor: string;
   textColor: string;
+  darkBackgroundColor?: string;
+  darkTextColor?: string;
   isActive?: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -49,6 +51,8 @@ export interface UpdateFooterDto {
   };
   backgroundColor?: string;
   textColor?: string;
+  darkBackgroundColor?: string;
+  darkTextColor?: string;
 }
 
 export async function getPublicFooter(): Promise<{ success: boolean; data: Omit<FooterData, 'id' | 'isActive' | 'createdAt' | 'updatedAt'> }> {

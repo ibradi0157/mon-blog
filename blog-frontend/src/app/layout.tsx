@@ -3,11 +3,11 @@ import type { Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
-import "quill/dist/quill.snow.css";
 import { QueryProvider } from "@/app/providers/QueryProvider";
 import { AuthProvider } from "@/app/providers/AuthProvider";
+import { NotificationProvider } from "@/app/providers/NotificationProvider";
 import { ThemeProvider } from "@/app/components/ThemeToggle";
-import { NavBar } from "@/app/components/NavBar";
+import { PremiumNavBar } from "@/app/components/PremiumNavBar";
 import { ServiceWorkerRegistration } from "@/app/components/ServiceWorkerRegistration";
 import { SiteSettingsProvider } from "@/app/providers/SiteSettingsProvider";
 import { FaviconUpdater } from "@/app/components/FaviconUpdater";
@@ -97,17 +97,19 @@ export default function RootLayout({
         <ThemeProvider>
           <QueryProvider>
             <AuthProvider>
-              <SiteSettingsProvider>
-                <ServiceWorkerRegistration />
-                <FaviconUpdater />
-                <div className="flex flex-col min-h-screen">
-                  <NavBar />
-                  <main className="flex-1">
-                    {children}
-                  </main>
-                  <DynamicFooter />
-                </div>
-              </SiteSettingsProvider>
+              <NotificationProvider>
+                <SiteSettingsProvider>
+                  <ServiceWorkerRegistration />
+                  <FaviconUpdater />
+                  <div className="flex flex-col min-h-screen">
+                    <PremiumNavBar />
+                    <main className="flex-1">
+                      {children}
+                    </main>
+                    <DynamicFooter />
+                  </div>
+                </SiteSettingsProvider>
+              </NotificationProvider>
             </AuthProvider>
           </QueryProvider>
         </ThemeProvider>

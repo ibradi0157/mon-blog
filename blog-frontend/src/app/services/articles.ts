@@ -4,6 +4,7 @@ export type Article = {
   id: string;
   title: string;
   content: string;
+  excerpt?: string | null;
   coverUrl?: string | null;
   thumbnails?: string[];
   isPublished: boolean;
@@ -38,7 +39,7 @@ export async function getAdminArticle(id: string) {
   return data as { success: boolean; data: Article };
 }
 
-export type CreateArticlePayload = { title: string; content: string; isPublished?: boolean; categoryId?: string | null };
+export type CreateArticlePayload = { title: string; content: string; excerpt?: string | null; isPublished?: boolean; categoryId?: string | null };
 export async function createArticle(payload: CreateArticlePayload) {
   const { data } = await api.post("/articles", payload);
   return data as { success: boolean; data: Article };

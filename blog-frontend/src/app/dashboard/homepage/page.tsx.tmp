@@ -1,0 +1,177 @@
+"use client";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Save, Sparkles } from "lucide-react";
+import { getAdminHomepage, updateAdminHomepage, type HomepageConfig } from "@/app/services/homepage";
+import { listAdminArticles, type Article, listCategories } from "@/app/services/articles";
+import { FeaturedArticlesCarousel } from "@/app/components/FeaturedArticlesCarousel";
+import type { Section } from "@/app/services/homepage";
+
+const SECTION_LABELS: Record<string, string> = {
+  hero: "Section Hero",
+  featuredGrid: "Grille d'Articles",
+  featuredCarousel: "Carousel d'Articles",
+  categoryGrid: "Grille de Catégories",
+  html: "Contenu HTML",
+  spacer: "Espacement",
+  cta: "Appel à l'Action",
+};
+
+export default function HomepageBuilderPage() {
+  const qc = useQueryClient();
+  const cfgQ = useQuery({ queryKey: ["admin-homepage"], queryFn: getAdminHomepage, select: (res: any) => res.data });
+  const articlesQ = useQuery({ queryKey: ["admin-articles"], queryFn: () => listAdminArticles(), select: (res: any) => res.data });
+  const categoriesQ = useQuery({ queryKey: ["admin-categories"], queryFn: () => listCategories(), select: (res: any) => res.data });
+
+  const allArticles = articlesQ.data || [];
+  const categories = categoriesQ.data || [];
+
+  const [form, setForm] = useState<HomepageConfig>({ featuredArticleIds: [], sections: [] } as HomepageConfig);
+  useEffect(() => { if (cfgQ.data) setForm(cfgQ.data); }, [cfgQ.data]);
+
+  const mSave = useMutation({ mutationFn: (payload: Partial<HomepageConfig>) => updateAdminHomepage(payload), onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-homepage"] }) });
+
+  const addSection = (kind: Section['kind']) => {
+    const defaults: Record<string, any> = {
+      hero: { kind: 'hero', title: '', subtitle: '', imageUrl: null },
+      featuredGrid: { kind: 'featuredGrid', title: '', articleIds: [] },
+      featuredCarousel: { kind: 'featuredCarousel', title: '', articleIds: [], transition: 'slide', speed: 5000, autoPlay: true },
+      categoryGrid: { kind: 'categoryGrid', title: '', categoryIds: [] },
+      html: { kind: 'html', html: '' },
+      spacer: { kind: 'spacer', size: 'md' },
+      cta: { kind: 'cta', title: '', text: '', buttonLabel: '', buttonHref: '' },
+    };
+    setForm((f) => ({ ...f, sections: [...(f.sections || []), defaults[kind]] }));
+  };
+
+  const updateSection = (idx: number, changes: Partial<Section>) => {
+    setForm((f) => {
+      const sections = [...(f.sections || [])];
+      sections[idx] = { ...(sections[idx] as any), ...(changes as any) } as Section;
+      return { ...f, sections } as HomepageConfig;
+    });
+  };
+
+  const removeSection = (idx: number) => {
+    setForm((f) => {
+      const sections = [...(f.sections || [])];
+      sections.splice(idx, 1);
+      return { ...f, sections } as HomepageConfig;
+    });
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 py-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-lg font-semibold">Constructeur de page d'accueil</h2>
+          <p className="text-sm text-slate-500">Gérez les sections affichées sur la page d'accueil</p>
+        </div>
+        <div>
+          <button onClick={() => mSave.mutate(form)} className="inline-flex items-center px-3 py-2 bg-blue-600 text-white rounded-md">
+            <Save className="w-4 h-4 mr-2" /> {mSave.isPending ? 'Sauvegarde...' : 'Enregistrer'}
+          </button>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1">
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-4 border">
+            <h3 className="font-medium mb-2">Ajouter une section</h3>
+            <div className="grid gap-2">
+              {Object.keys(SECTION_LABELS).map((k) => (
+                <button key={k} onClick={() => addSection(k as any)} className="flex items-center gap-3 p-3 border rounded">
+                  <Plus className="w-4 h-4" /> <span className="text-sm">{SECTION_LABELS[k]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="lg:col-span-2 space-y-4">
+          {(form.sections || []).map((s, idx) => (
+            <div key={idx} className="bg-white dark:bg-slate-800 rounded-lg p-4 border">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h4 className="font-medium">{SECTION_LABELS[s.kind]}</h4>
+                  <p className="text-xs text-slate-500">Section {idx + 1}</p>
+                </div>
+                <div>
+                  <button onClick={() => removeSection(idx)} className="text-red-600">Supprimer</button>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                {/* Simple editor: for featuredCarousel allow selecting article ids and options */}
+                {s.kind === 'featuredCarousel' && (
+                  <div>
+                    <label className="block text-sm font-semibold mb-2">Titre</label>
+                    <input type="text" value={(s as any).title || ''} onChange={(e) => updateSection(idx, { title: e.target.value } as any)} className="w-full px-3 py-2 border rounded mb-3" />
+                    <label className="block text-sm font-semibold mb-2">Articles sélectionnés</label>
+                    <div className="space-y-2 mb-2">
+                      {((s as any).articleIds || []).map((id: string) => {
+                        const a = allArticles.find((x) => x.id === id);
+                        return (
+                          <div key={id} className="flex items-center justify-between p-2 border rounded">
+                            <div className="truncate text-sm">{a ? a.title : id}</div>
+                            <button className="text-red-600" onClick={() => updateSection(idx, { articleIds: (s as any).articleIds.filter((x: string) => x !== id) } as any)}>Retirer</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mb-3">
+                      <label className="block text-sm font-semibold mb-2">Ajouter un article</label>
+                      <div className="space-y-2 max-h-48 overflow-y-auto border rounded p-2">
+                        {allArticles.map((a) => (
+                          <div key={a.id} className="flex items-center justify-between p-2 hover:bg-slate-50 rounded">
+                            <div className="truncate text-sm">{a.title}</div>
+                            <button onClick={() => updateSection(idx, { articleIds: [...(s as any).articleIds || [], a.id] } as any)} className="text-blue-600">Ajouter</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-sm">Transition</label>
+                        <select value={(s as any).transition || 'slide'} onChange={(e) => updateSection(idx, { transition: e.target.value } as any)} className="w-full px-2 py-1 border rounded">
+                          <option value="slide">Slide</option>
+                          <option value="fade">Fade</option>
+                          <option value="zoom">Zoom</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm">Vitesse (ms)</label>
+                        <input type="number" value={(s as any).speed || 5000} onChange={(e) => updateSection(idx, { speed: Number(e.target.value) } as any)} className="w-full px-2 py-1 border rounded" />
+                      </div>
+                      <div>
+                        <label className="block text-sm">Auto-play</label>
+                        <div className="mt-2">
+                          <label className="inline-flex items-center">
+                            <input type="checkbox" checked={!!(s as any).autoPlay} onChange={(e) => updateSection(idx, { autoPlay: e.target.checked } as any)} className="mr-2" />
+                            <span className="text-sm">Activer</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h5 className="text-sm font-medium mb-2">Aperçu</h5>
+                <div className="border rounded p-2">
+                  {s.kind === 'featuredCarousel' ? (
+                    <FeaturedArticlesCarousel articles={((s as any).articleIds || []).map((id: string) => allArticles.find(a => a.id === id)).filter(Boolean) as Article[]} transition={(s as any).transition} speed={(s as any).speed} autoPlay={(s as any).autoPlay} />
+                  ) : (
+                    <div className="text-sm text-slate-500 p-4">Aperçu non disponible pour cette section</div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

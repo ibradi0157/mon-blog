@@ -1,6 +1,6 @@
 // src/users/users.service.ts
 import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { Repository, In, Like } from 'typeorm';
 import { User } from './user.entity';
 import { DeletedEmail } from './deleted-email.entity';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -9,9 +9,22 @@ import { Permissions } from '../roles/permissions';
 import { Role } from '../roles/role.entity';
 import { Article } from '../articles/article.entity';
 import { Comment } from '../comments/comment.entity';
+import { Subscription } from '../subscriptions/subscription.entity';
 import * as fs from 'fs';
 import { join, dirname, basename, extname } from 'path';
 import * as bcrypt from 'bcrypt';
+
+type FindMembersOptions = {
+  search?: string;
+  role?: string;
+  page: number;
+  limit: number;
+};
+
+type FindUserArticlesOptions = {
+  page: number;
+  limit: number;
+};
 
 @Injectable()
 export class UsersService {
@@ -20,6 +33,7 @@ export class UsersService {
     @InjectRepository(Role) private roleRepo: Repository<Role>,
     @InjectRepository(Article) private articleRepo: Repository<Article>,
     @InjectRepository(Comment) private commentRepo: Repository<Comment>,
+    @InjectRepository(Subscription) private subscriptionRepo: Repository<Subscription>,
     @InjectRepository(DeletedEmail) private deletedEmailRepo: Repository<DeletedEmail>,
   ) {}
 
@@ -258,5 +272,84 @@ export class UsersService {
 
     throw new ForbiddenException('Action non autorisée');
   }
-  // ...existing code...
+
+  /**
+   * Public members listing with optional search/role filter and pagination
+   */
+  async findMembers(options: { search?: string; role?: string; page: number; limit: number }) {
+    const { search, role, page = 1, limit = 10 } = options;
+    const qb = this.repo.createQueryBuilder('user').leftJoinAndSelect('user.role', 'role');
+
+    qb.where('user.isActive = :active', { active: true });
+    if (role) qb.andWhere('role.name = :role', { role });
+    if (search) qb.andWhere('(user.displayName ILIKE :search OR user.email ILIKE :search)', { search: `%${search}%` });
+
+    qb.orderBy('user.createdAt', 'DESC');
+    qb.skip((page - 1) * limit).take(limit);
+
+    const [entities, total] = await qb.getManyAndCount();
+
+    // Enrich with counts (published articles, followers)
+    const data = await Promise.all(
+      entities.map(async (u) => {
+        const [articles, followers] = await Promise.all([
+          this.articleRepo.count({ where: { authorId: u.id, isPublished: true } as any }),
+          this.subscriptionRepo.count({ where: { targetId: u.id, type: 'author' } as any }),
+        ]);
+        return {
+          id: u.id,
+          displayName: (u as any).displayName,
+          email: (u as any).email,
+          image: (u as any).avatarUrl || null,
+          bio: (u as any).bio || null,
+          role: (u as any).role?.name,
+          createdAt: (u as any).createdAt,
+          _count: { articles, followers },
+        };
+      })
+    );
+
+    return [data, total] as const;
+  }
+
+  /**
+   * Public profile for a given user id
+   */
+  async findPublicProfile(id: string) {
+    const user = await this.repo.findOne({ where: { id }, relations: ['role'] });
+    if (!user || !(user as any).isActive) return null;
+
+    const [articles, followers, following] = await Promise.all([
+      this.articleRepo.count({ where: { authorId: id, isPublished: true } as any }),
+      this.subscriptionRepo.count({ where: { targetId: id, type: 'author' } as any }),
+      this.subscriptionRepo.count({ where: { follower: { id } } as any }),
+    ]);
+
+    return {
+      id: user.id,
+      displayName: (user as any).displayName,
+      email: (user as any).email,
+      image: (user as any).avatarUrl || null,
+      bio: (user as any).bio || null,
+      role: (user as any).role?.name,
+      createdAt: (user as any).createdAt,
+      _count: { articles, followers, following },
+    };
+  }
+
+  /**
+   * Public articles authored by a user
+   */
+  async findUserArticles(id: string, opts: { page: number; limit: number }) {
+    const page = opts.page || 1;
+    const limit = opts.limit || 10;
+    const [articles, total] = await this.articleRepo.findAndCount({
+      where: { authorId: id, isPublished: true } as any,
+      relations: ['category'],
+      order: { createdAt: 'DESC' } as any,
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return [articles, total] as const;
+  }
 }

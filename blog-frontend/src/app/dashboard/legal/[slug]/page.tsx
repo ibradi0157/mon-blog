@@ -3,8 +3,9 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/app/providers/AuthProvider";
 import { adminGetLegal, adminSetPublished, adminUpdateLegal, LegalPage, LegalSlug } from "@/app/services/legal";
-import { RichTextEditor } from "@/app/components/RichTextEditor";
+import { ProEditor } from "@/app/components/ProEditor";
 import { Badge } from "@/app/components/ui/Badge";
 import { Button } from "@/app/components/ui/Button";
 import { Input } from "@/app/components/ui/Input";
@@ -14,9 +15,27 @@ function defaultTitle(slug: LegalSlug) {
 }
 
 export default function AdminEditLegalPage() {
+  const { user } = useAuth();
   const params = useParams();
   const router = useRouter();
   const slug = (params?.slug as string) as LegalSlug;
+
+  // Redirect if not PRIMARY_ADMIN
+  useEffect(() => {
+    if (user && user.role !== 'PRIMARY_ADMIN') {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
+
+  // Show loading while checking permissions
+  if (!user || user.role !== 'PRIMARY_ADMIN') {
+    return (
+      <div className="p-6 text-center">
+        <div className="w-12 h-12 mx-auto mb-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-slate-600 dark:text-slate-400">Vérification des permissions...</p>
+      </div>
+    );
+  }
 
   const { data, isLoading, error } = useQuery<LegalPage>({
     queryKey: ["admin-legal", slug],
@@ -143,8 +162,8 @@ export default function AdminEditLegalPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Contenu</label>
-              <RichTextEditor
-                value={content}
+              <ProEditor
+                content={content}
                 onChange={setContent}
                 placeholder="Écrivez le contenu légal ici…"
                 onImageUpload={async (file: File) => {
@@ -163,7 +182,7 @@ export default function AdminEditLegalPage() {
                   const data = await resp.json();
                   return { url: data.url as string, name: data.name as string, mime: data.mime as string, size: data.size as number };
                 }}
-                showWordCount
+                showStats
                 className="min-h-[60vh] sm:min-h-[400px]"
               />
             </div>

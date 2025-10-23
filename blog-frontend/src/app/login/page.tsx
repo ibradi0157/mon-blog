@@ -10,13 +10,28 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const router = useRouter();
   const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
   // Enable in any environment when a site key is provided (dev and prod)
   const shouldUseRecaptcha = Boolean(recaptchaSiteKey);
   const widgetIdRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      // Redirect to appropriate dashboard based on role
+      const dashboardPath = user.role?.includes('ADMIN')
+        ? '/dashboard'
+        : user.role === 'MEMBER'
+          ? '/member'
+          : user.role === 'SIMPLE_USER'
+            ? '/user'
+            : '/';
+      router.push(dashboardPath);
+    }
+  }, [user, router]);
 
   // Render Google reCAPTCHA v2 checkbox when a site key is present
   useEffect(() => {
@@ -37,9 +52,21 @@ export default function LoginPage() {
     tryRender();
   }, [shouldUseRecaptcha, recaptchaSiteKey]);
 
+  // Show loading state while checking authentication
+  if (user) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
+        <div className="text-center">
+          <div className="w-12 h-12 mx-auto mb-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-slate-600 dark:text-slate-400">Redirection...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[70vh] flex items-center justify-center safe-px py-12 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200/60 dark:border-slate-700/60 bg-white/80 dark:bg-slate-900/60 backdrop-blur shadow-xl p-6">
+      <div className="w-full max-w-md rounded-2xl border border-slate-200/60 dark:border-slate-700/60 bg-white/80 dark:bg-slate-900/80 backdrop-blur shadow-xl p-6">
         <div className="mb-4 text-center">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Connexion</h1>
           <p className="text-sm text-slate-600 dark:text-slate-400">Heureux de vous revoir</p>

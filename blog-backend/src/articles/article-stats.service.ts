@@ -28,8 +28,8 @@ export class ArticleStatsService {
     await this.cache.set('articles:public:v', Date.now().toString());
   }
 
-  // In-memory cache for view dedup (1h TTL)
-  private static readonly VIEW_TTL_MS = 60 * 60 * 1000;
+  // In-memory cache for view dedup (3h TTL as requested)
+  private static readonly VIEW_TTL_MS = 3 * 60 * 60 * 1000;
   private viewCache = new Map<string, number>(); // key: `${articleId}:${identity}` => lastTs
 
   private viewerIdentity(articleId: string, req: Request, user?: any) {

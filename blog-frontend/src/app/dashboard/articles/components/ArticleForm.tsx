@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { createArticle, updateArticle, uploadCover, publishArticle, type Article, listCategories, uploadContentImage, uploadArticleContentImage, type Category, checkTitleAvailability } from "@/app/services/articles";
-import { ModernRichTextEditor } from "@/app/components/ModernRichTextEditor";
+import { ProEditor } from "@/app/components/ProEditor";
 import { useRouter } from "next/navigation";
 import { toAbsoluteImageUrl } from "@/app/lib/api";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [excerpt, setExcerpt] = useState("");
   const [isPublished, setIsPublished] = useState<boolean>(false);
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +57,7 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
     if (initial) {
       setTitle(initial.title ?? "");
       setContent(initial.content ?? "");
+      setExcerpt(initial.excerpt ?? "");
       setIsPublished(initial.isPublished ?? false);
       setCategoryId(initial.category?.id ?? "");
     }
@@ -82,6 +84,7 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
         const d = JSON.parse(raw);
         setTitle(d.title ?? "");
         setContent(d.content ?? "");
+        setExcerpt(d.excerpt ?? "");
         setIsPublished(d.isPublished ?? false);
         setCategoryId(d.categoryId ?? "");
         toast("Brouillon restauré");
@@ -99,7 +102,7 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
       try {
         localStorage.setItem(
           draftKey,
-          JSON.stringify({ title, content, isPublished, categoryId, updatedAt: Date.now() })
+          JSON.stringify({ title, content, excerpt, isPublished, categoryId, updatedAt: Date.now() })
         );
       } catch (e) {
         // ignore storage errors
@@ -142,6 +145,7 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
       const res = await createArticle({ 
         title, 
         content, 
+        excerpt: excerpt || null,
         categoryId: categoryId || null 
       });
       
@@ -190,6 +194,7 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
       const res = await updateArticle(id, { 
         title, 
         content, 
+        excerpt: excerpt || null,
         isPublished, 
         categoryId: categoryId ?? null 
       });
@@ -305,11 +310,22 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
         </div>
       </div>
       <div>
+        <label className="block text-sm mb-1">Résumé (optionnel)</label>
+        <textarea
+          value={excerpt}
+          onChange={(e) => setExcerpt(e.target.value)}
+          placeholder="Brève description pour attirer les lecteurs..."
+          className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 transition-all resize-none"
+          rows={3}
+        />
+        <p className="text-xs text-slate-500 mt-1">Ce champ est optionnel. Il sera affiché sous le titre dans le carousel et au survol des articles.</p>
+      </div>
+      <div>
         <label className="block text-sm mb-1">Contenu</label>
         <div className="border rounded-lg overflow-hidden">
           {isMounted && (
-            <ModernRichTextEditor
-              value={content}
+            <ProEditor
+              content={content}
               onChange={setContent}
               onImageUpload={handleImageUpload}
               onFileUpload={async (file: File) => {
@@ -322,7 +338,7 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
               }}
               placeholder="Écrivez votre article ici..."
               className="min-h-[60vh] sm:min-h-[400px]"
-              showWordCount={true}
+              showStats={true}
             />
           )}
           {isUploading && (

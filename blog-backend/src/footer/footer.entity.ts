@@ -47,6 +47,12 @@ export class Footer {
   @Column({ type: 'varchar', length: 100, default: '#1e293b' })
   textColor: string;
 
+  @Column({ type: 'varchar', length: 100, default: '#0f172a', nullable: true })
+  darkBackgroundColor: string;
+
+  @Column({ type: 'varchar', length: 100, default: '#e2e8f0', nullable: true })
+  darkTextColor: string;
+
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 

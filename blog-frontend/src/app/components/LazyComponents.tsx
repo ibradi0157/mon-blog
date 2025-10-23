@@ -11,8 +11,8 @@ export const LazyArticleCard = lazy(() =>
   import('./ArticleCard').then(module => ({ default: module.ArticleCard }))
 );
 
-export const LazyModernRichTextEditor = lazy(() => 
-  import('./ModernRichTextEditor').then(module => ({ default: module.ModernRichTextEditor }))
+export const LazyProEditor = lazy(() => 
+  import('./ProEditor').then(module => ({ default: module.ProEditor }))
 );
 
 // Note: These components will be created when dashboard modules are implemented
@@ -77,9 +77,9 @@ export const ArticleCardWithSuspense = (props: any) => (
   </Suspense>
 );
 
-export const ModernRichTextEditorWithSuspense = (props: any) => (
+export const ProEditorWithSuspense = (props: any) => (
   <Suspense fallback={<EditorSkeleton />}>
-    <LazyModernRichTextEditor {...props} />
+    <LazyProEditor {...props} />
   </Suspense>
 );
 

@@ -40,4 +40,77 @@ export class SubscriptionsController {
     await this.subscriptionsService.deleteSubscription(req.user.userId, subscriptionId);
     return { message: 'Subscription deleted successfully' };
   }
+
+  // Simplified follow/unfollow for authors
+  @Post('follow/author/:authorId')
+  async followAuthor(
+    @Request() req,
+    @Param('authorId') authorId: string
+  ): Promise<Subscription> {
+    return await this.subscriptionsService.createSubscription(req.user.userId, {
+      type: 'author',
+      targetId: authorId,
+      frequency: 'instant'
+    });
+  }
+
+  @Delete('follow/author/:authorId')
+  async unfollowAuthor(
+    @Request() req,
+    @Param('authorId') authorId: string
+  ): Promise<{ message: string }> {
+    await this.subscriptionsService.deleteSubscriptionByTarget(req.user.userId, 'author', authorId);
+    return { message: 'Unfollowed successfully' };
+  }
+
+  // Check if following an author
+  @Get('check/author/:authorId')
+  async checkFollowingAuthor(
+    @Request() req,
+    @Param('authorId') authorId: string
+  ): Promise<{ isFollowing: boolean }> {
+    const isFollowing = await this.subscriptionsService.isSubscribed(req.user.userId, 'author', authorId);
+    return { isFollowing };
+  }
+
+  // Get follower count for an author
+  @Get('followers/author/:authorId')
+  async getFollowerCount(
+    @Param('authorId') authorId: string
+  ): Promise<{ count: number }> {
+    const count = await this.subscriptionsService.getFollowerCount(authorId);
+    return { count };
+  }
+
+  // Subscribe to category
+  @Post('follow/category/:categoryId')
+  async subscribeToCategory(
+    @Request() req,
+    @Param('categoryId') categoryId: string
+  ): Promise<Subscription> {
+    return await this.subscriptionsService.createSubscription(req.user.userId, {
+      type: 'category',
+      targetId: categoryId,
+      frequency: 'instant'
+    });
+  }
+
+  @Delete('follow/category/:categoryId')
+  async unsubscribeFromCategory(
+    @Request() req,
+    @Param('categoryId') categoryId: string
+  ): Promise<{ message: string }> {
+    await this.subscriptionsService.deleteSubscriptionByTarget(req.user.userId, 'category', categoryId);
+    return { message: 'Unsubscribed successfully' };
+  }
+
+  // Check if subscribed to category
+  @Get('check/category/:categoryId')
+  async checkCategorySubscription(
+    @Request() req,
+    @Param('categoryId') categoryId: string
+  ): Promise<{ isSubscribed: boolean }> {
+    const isSubscribed = await this.subscriptionsService.isSubscribed(req.user.userId, 'category', categoryId);
+    return { isSubscribed };
+  }
 }

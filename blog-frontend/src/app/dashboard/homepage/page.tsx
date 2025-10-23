@@ -6,19 +6,19 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { 
-  Plus, GripVertical, Trash2, Eye, Monitor, Smartphone, Type, Grid3X3, Code, Space, Megaphone, Upload, Save, Sparkles, Tag
+  Plus, GripVertical, Trash2, Eye, Monitor, Smartphone, Type, Grid3X3, Code, Space, Megaphone, Upload, Save, Sparkles, Tag, Play
 } from "lucide-react";
 import { getAdminHomepage, updateAdminHomepage, type HomepageConfig } from "@/app/services/homepage";
 import { listAdminArticles, type Article, uploadArticleContentImage, listCategories, type Category } from "@/app/services/articles";
-import type { Section, HeroSection, FeaturedGridSection, HtmlSection, SpacerSection, CtaSection, CategoryGridSection } from "@/app/services/homepage";
+import type { Section, HeroSection, FeaturedGridSection, FeaturedCarouselSection, HtmlSection, SpacerSection, CtaSection, CategoryGridSection } from "@/app/services/homepage";
 import Link from 'next/link';
 import { toAbsoluteImageUrl } from "@/app/lib/api";
 import { IframePreview } from "@/app/components/homepage/IframePreview";
 import { SectionTemplates, type SectionTemplate } from "@/app/components/homepage/SectionTemplates";
 import { CodeEditor } from "@/app/components/homepage/CodeEditor";
 
-const SECTION_ICONS = { hero: Type, featuredGrid: Grid3X3, categoryGrid: Tag, html: Code, spacer: Space, cta: Megaphone } as const;
-const SECTION_LABELS = { hero: "Section Hero", featuredGrid: "Grille d'Articles", categoryGrid: "Grille de Catégories", html: "Contenu HTML", spacer: "Espacement", cta: "Appel à l'Action" } as const;
+const SECTION_ICONS = { hero: Type, featuredGrid: Grid3X3, featuredCarousel: Play, categoryGrid: Tag, html: Code, spacer: Space, cta: Megaphone } as const;
+const SECTION_LABELS = { hero: "Section Hero", featuredGrid: "Grille d'Articles", featuredCarousel: "Carrousel d'Articles", categoryGrid: "Grille de Catégories", html: "Contenu HTML", spacer: "Espacement", cta: "Appel à l'Action" } as const;
 
 export default function HomepageBuilderPage() {
   const qc = useQueryClient();
@@ -64,6 +64,7 @@ export default function HomepageBuilderPage() {
     const defaults: Record<Section["kind"], Section> = {
       hero: { kind: "hero", title: "Bienvenue sur notre blog", subtitle: "Découvrez nos derniers articles", imageUrl: null } as HeroSection,
       featuredGrid: { kind: "featuredGrid", title: "Articles à la une", articleIds: [] } as FeaturedGridSection,
+      featuredCarousel: { kind: "featuredCarousel", title: "Articles en vedette", articleIds: [], transition: "slide", speed: 5000, autoPlay: true } as FeaturedCarouselSection,
       categoryGrid: { kind: "categoryGrid", title: "Catégories", categoryIds: [] } as CategoryGridSection,
       html: { kind: "html", html: "<div class='text-center p-8'><h3>Contenu personnalisé</h3></div>" } as HtmlSection,
       spacer: { kind: "spacer", size: "md" } as SpacerSection,
@@ -555,6 +556,135 @@ function renderAdvancedSectionEditor(s: Section, idx: number, update: (idx: numb
               </div>
             )}
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (s.kind === "featuredCarousel") {
+    const sc = s as FeaturedCarouselSection;
+    const map = new Map(allArticles.map((a) => [a.id, a] as const));
+    const selected = (sc.articleIds || []).map((id) => map.get(id)).filter(Boolean) as Article[];
+    const add = (id: string) => !sc.articleIds.includes(id) && update(idx, { articleIds: [...sc.articleIds, id] } as Partial<FeaturedCarouselSection>);
+    const remove = (id: string) => update(idx, { articleIds: sc.articleIds.filter((x) => x !== id) } as Partial<FeaturedCarouselSection>);
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">Titre du carousel</label>
+          <input 
+            type="text" 
+            className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 transition-all"
+            value={sc.title || ""} 
+            onChange={(e) => update(idx, { title: e.target.value } as Partial<FeaturedCarouselSection>)}
+            placeholder="Articles en vedette"
+          />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">Sélection d'articles</label>
+          <input 
+            type="text" 
+            placeholder="Rechercher des articles..." 
+            className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-400 transition-all mb-4"
+            value={search} 
+            onChange={(e) => setSearch(e.target.value)} 
+          />
+          
+          {selected.length > 0 && (
+            <div className="mb-4">
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">Articles sélectionnés ({selected.length})</p>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {selected.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate text-slate-900 dark:text-slate-100">{a.title}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{a.isPublished ? "Publié" : "Brouillon"}</p>
+                    </div>
+                    <button 
+                      onClick={() => remove(a.id)} 
+                      className="ml-3 p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <div className="max-h-60 overflow-y-auto space-y-2 border border-slate-200 dark:border-slate-600 rounded-xl p-3">
+            {allArticles
+              .filter((a) => !selected.some((s) => s.id === a.id) && (!search || a.title.toLowerCase().includes(search.toLowerCase())))
+              .map((a) => (
+                <div key={a.id} className="flex items-center justify-between p-3 hover:bg-slate-50 dark:hover:bg-slate-700/60 rounded-lg transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate text-slate-900 dark:text-slate-100">{a.title}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{a.isPublished ? "Publié" : "Brouillon"}</p>
+                  </div>
+                  <button 
+                    onClick={() => add(a.id)} 
+                    className="ml-3 px-3 py-1 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Ajouter
+                  </button>
+                </div>
+              ))}
+            {allArticles.filter((a) => !selected.some((s) => s.id === a.id) && (!search || a.title.toLowerCase().includes(search.toLowerCase()))).length === 0 && (
+              <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                <Play className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Aucun article disponible</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">Transition</label>
+            <select
+              value={sc.transition || "slide"}
+              onChange={(e) => update(idx, { transition: e.target.value as 'slide' | 'fade' | 'zoom' } as Partial<FeaturedCarouselSection>)}
+              className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            >
+              <option value="slide">Glissement (Slide)</option>
+              <option value="fade">Fondu (Fade)</option>
+              <option value="zoom">Zoom</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">Vitesse (ms)</label>
+            <input
+              type="number"
+              min="1000"
+              max="10000"
+              step="500"
+              value={sc.speed || 5000}
+              onChange={(e) => update(idx, { speed: Number(e.target.value) } as Partial<FeaturedCarouselSection>)}
+              className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold mb-3 text-slate-700 dark:text-slate-300">Lecture automatique</label>
+            <div className="flex items-center h-[52px]">
+              <label className="inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sc.autoPlay ?? true}
+                  onChange={(e) => update(idx, { autoPlay: e.target.checked } as Partial<FeaturedCarouselSection>)}
+                  className="w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700"
+                />
+                <span className="ml-3 text-sm text-slate-700 dark:text-slate-300">Activer</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+          <p className="text-sm text-blue-800 dark:text-blue-200">
+            <strong>💡 Conseil :</strong> Le carousel affichera les articles avec leur couverture en arrière-plan, le titre et le résumé (si disponible). 
+            Sélectionnez au moins 3 articles pour un meilleur effet visuel.
+          </p>
         </div>
       </div>
     );

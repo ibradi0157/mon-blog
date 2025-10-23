@@ -386,7 +386,60 @@ export class ArticlesService {
   }
 
   async optimizeImageFile(file: Express.Multer.File, opts?: { maxWidth?: number; quality?: number }) {
-    // ...
+    const { maxWidth = 1920, quality = 85 } = opts || {};
+    const absPath = join(process.cwd(), file.destination?.replace(/^\/+/, '') || '', file.filename);
+    const ext = extname(file.filename).toLowerCase();
+    
+    // Skip GIF optimization to preserve animation
+    if (ext === '.gif') return;
+
+    try {
+      const sharpMod = (await import('sharp')).default;
+      const image = sharpMod(absPath);
+      const metadata = await image.metadata();
+
+      // Only process if image is larger than maxWidth
+      if (metadata.width && metadata.width > maxWidth) {
+        let pipeline = image
+          .rotate() // Auto-rotate based on EXIF
+          .resize({ width: maxWidth, withoutEnlargement: true })
+          .withMetadata(); // Preserve metadata
+
+        // Apply format-specific optimization
+        if (ext === '.jpg' || ext === '.jpeg') {
+          pipeline = pipeline.jpeg({ quality, progressive: true, mozjpeg: true });
+        } else if (ext === '.png') {
+          pipeline = pipeline.png({ compressionLevel: 9, adaptiveFiltering: true });
+        } else if (ext === '.webp') {
+          pipeline = pipeline.webp({ quality, effort: 6 });
+        }
+
+        // Overwrite the original file with optimized version
+        await pipeline.toFile(absPath + '.tmp');
+        await fs.promises.rename(absPath + '.tmp', absPath);
+      } else {
+        // Just optimize without resizing
+        let pipeline = image.rotate().withMetadata();
+        
+        if (ext === '.jpg' || ext === '.jpeg') {
+          pipeline = pipeline.jpeg({ quality, progressive: true, mozjpeg: true });
+        } else if (ext === '.png') {
+          pipeline = pipeline.png({ compressionLevel: 9, adaptiveFiltering: true });
+        } else if (ext === '.webp') {
+          pipeline = pipeline.webp({ quality, effort: 6 });
+        }
+
+        await pipeline.toFile(absPath + '.tmp');
+        await fs.promises.rename(absPath + '.tmp', absPath);
+      }
+    } catch (error) {
+      console.error('Error optimizing image:', error);
+      // Clean up temp file if it exists
+      try {
+        await fs.promises.unlink(absPath + '.tmp');
+      } catch (_) {}
+      throw error;
+    }
   }
 
   // Generate thumbnail files for the uploaded image and return their URLs

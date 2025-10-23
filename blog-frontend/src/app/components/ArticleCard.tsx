@@ -1,11 +1,12 @@
 "use client";
 import Link from "next/link";
-import { Clock, Calendar, User, ArrowRight, BookOpen, Eye } from "lucide-react";
+import { Clock, Calendar, User, ArrowRight, BookOpen, Eye, MessageCircle, Tag } from "lucide-react";
 import { toAbsoluteImageUrl, buildSrcSet } from "../lib/api";
 
 export function ArticleCard({
   id,
   title,
+  excerpt,
   coverUrl,
   thumbnails = [],
   createdAt,
@@ -13,9 +14,13 @@ export function ArticleCard({
   content,
   category,
   isPublished = true,
+  viewCount = 0,
+  commentCount = 0,
+  tags = [],
 }: {
   id: string;
   title: string;
+  excerpt?: string | null;
   coverUrl?: string | null;
   thumbnails?: string[];
   createdAt?: string;
@@ -23,6 +28,9 @@ export function ArticleCard({
   content?: string;
   category?: { id: string; name: string } | null;
   isPublished?: boolean;
+  viewCount?: number;
+  commentCount?: number;
+  tags?: string[];
 }) {
   const src = toAbsoluteImageUrl(coverUrl);
   const srcSet = buildSrcSet(thumbnails);
@@ -71,16 +79,16 @@ export function ArticleCard({
         {/* Content */}
         <div className="p-6">
           {/* Meta Information */}
-          <div className="flex items-center space-x-4 text-sm text-slate-500 dark:text-slate-400 mb-3">
+          <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-sm text-slate-500 dark:text-slate-400 mb-3">
             {readingTime > 0 && (
               <div className="flex items-center space-x-1">
-                <Clock className="w-3 h-3" />
+                <Clock className="w-3.5 h-3.5" />
                 <span>{readingTime} min</span>
               </div>
             )}
             {createdAt && (
               <div className="flex items-center space-x-1">
-                <Calendar className="w-3 h-3" />
+                <Calendar className="w-3.5 h-3.5" />
                 <span>
                   {new Date(createdAt).toLocaleDateString('fr-FR', { 
                     day: 'numeric', 
@@ -90,12 +98,47 @@ export function ArticleCard({
                 </span>
               </div>
             )}
+            <div className="flex items-center space-x-1">
+              <Eye className="w-3.5 h-3.5" />
+              <span>{viewCount.toLocaleString('fr-FR')}</span>
+            </div>
+            <div className="flex items-center space-x-1">
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span>{commentCount}</span>
+            </div>
           </div>
           
           {/* Title */}
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-4 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2 leading-tight">
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-3 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2 leading-tight">
             {title}
           </h3>
+          
+          {/* Excerpt */}
+          {excerpt && (
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 line-clamp-2 leading-relaxed">
+              {excerpt}
+            </p>
+          )}
+          
+          {/* Tags */}
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-4">
+              {tags.slice(0, 3).map((tag, idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center space-x-1 px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-md text-xs font-medium hover:bg-blue-100 dark:hover:bg-blue-900/30 hover:text-blue-700 dark:hover:text-blue-400 transition-colors"
+                >
+                  <Tag className="w-2.5 h-2.5" />
+                  <span>{tag}</span>
+                </span>
+              ))}
+              {tags.length > 3 && (
+                <span className="inline-flex items-center px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-md text-xs font-medium">
+                  +{tags.length - 3}
+                </span>
+              )}
+            </div>
+          )}
           
           {/* Author and Action */}
           <div className="flex items-center justify-between">
@@ -121,8 +164,8 @@ export function ArticleCard({
               </div>
             </div>
             
-            <div className="flex items-center space-x-1 text-blue-600 dark:text-blue-400 group-hover:translate-x-1 transition-transform">
-              <Eye className="w-4 h-4" />
+            <div className="flex items-center space-x-1 text-blue-600 dark:text-blue-400 font-medium group-hover:translate-x-1 transition-transform">
+              <span className="text-xs">Lire plus</span>
               <ArrowRight className="w-4 h-4" />
             </div>
           </div>

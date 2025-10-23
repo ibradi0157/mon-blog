@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
+import compression from 'compression';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
@@ -15,26 +16,29 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const isProd = process.env.NODE_ENV === 'production';
 
-  // Session middleware is applied via SecurityModule to ensure proper DI and avoid `this` binding issues
-
-  // CORS
+  // 🌍 Définition des origines autorisées
   const explicitOrigins = (process.env.FRONTEND_ORIGINS || '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
+
   const allowedOrigins = new Set<string>([
-    'http://localhost:3001',
+    'https://mon-site.com', // ton domaine principal (frontend prod)
+    'https://app.mon-site.com', // si tu as une sous-domaine
+    'http://localhost:3001', // pour le dev
     'http://127.0.0.1:3001',
     ...explicitOrigins,
   ]);
+
   const devOriginRegex = /^http:\/\/(localhost|127\.0\.0\.1|10\.(?:\d{1,3}\.){2}\d{1,3}|192\.168\.(?:\d{1,3})\.(?:\d{1,3})|172\.(?:1[6-9]|2\d|3[0-1])\.(?:\d{1,3})\.(?:\d{1,3})):\d+$/;
 
+  // 🛡️ Configuration CORS
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       if (allowedOrigins.has(origin)) return callback(null, true);
       if (!isProd && devOriginRegex.test(origin)) return callback(null, true);
-      if (!isProd) console.warn('[CORS] Origin non autorisée:', origin);
+      if (!isProd) console.warn('[CORS] Origine non autorisée:', origin);
       return callback(new Error('Not allowed by CORS'), false);
     },
     credentials: true,
@@ -47,88 +51,100 @@ async function bootstrap() {
     ],
     maxAge: 86400,
     optionsSuccessStatus: 204,
-    preflightContinue: false,
   });
 
-  // Increase body size limits for rich text/HTML payloads
+  // 🧱 Middleware utiles
   app.use(json({ limit: '10mb' }));
   app.use(urlencoded({ extended: true, limit: '10mb' }));
+  app.use(compression()); // ➕ compression gzip pour accélérer les réponses
 
-  app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, transformOptions: { enableImplicitConversion: true } }));
+  // ⚙️ Sécurité Helmet
   app.use(
     helmet({
-      // Swagger UI utilise des scripts inline; désactiver CSP en dev évite la page blanche
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-          fontSrc: ["'self'", 'https:', 'data:'],
-          connectSrc: ["'self'", 'https:'],
-          mediaSrc: ["'self'"],
-          objectSrc: ["'none'"],
-          baseUri: ["'self'"]
-        }
-      },
-      // Activer crossOriginEmbedderPolicy en production uniquement
-      crossOriginEmbedderPolicy: isProd,
-      // Autres paramètres de sécurité
-      crossOriginResourcePolicy: { policy: isProd ? "same-origin" : "cross-origin" },
-      crossOriginOpenerPolicy: { policy: isProd ? "same-origin" : "unsafe-none" },
-      referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-      strictTransportSecurity: isProd ? {
-        maxAge: 63072000,
-        includeSubDomains: true,
-        preload: true
-      } : false
+      contentSecurityPolicy: isProd
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'"],
+              styleSrc: ["'self'", "'unsafe-inline'"],
+              imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+              fontSrc: ["'self'", 'https:', 'data:'],
+              connectSrc: ["'self'", 'https:'],
+              mediaSrc: ["'self'"],
+              objectSrc: ["'none'"],
+              baseUri: ["'self'"],
+            },
+          }
+        : false, // Désactivé en dev pour Swagger
+      crossOriginEmbedderPolicy: false, // évite les erreurs de chargement cross-domain
+      crossOriginResourcePolicy: { policy: 'cross-origin' }, // autorise ton frontend à charger les images
+      crossOriginOpenerPolicy: { policy: isProd ? 'same-origin' : 'unsafe-none' },
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      strictTransportSecurity: isProd
+        ? {
+            maxAge: 63072000,
+            includeSubDomains: true,
+            preload: true,
+          }
+        : false,
     }),
   );
 
-  // Serve static files for uploads (allow cross-origin embedding)
+  // 📁 Fichiers statiques (uploads)
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads',
     setHeaders: (res) => {
-      // Allow pages from other origins (e.g., Next frontend) to embed these images
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-      // Optionally expose for browsers doing preflights (not strictly required for <img>)
       res.setHeader('Access-Control-Allow-Origin', '*');
     },
   });
 
-  // Global API prefix
+  // 🌐 Préfixe global
   app.setGlobalPrefix('api/v1');
 
-  // Swagger setup
-  const config = new DocumentBuilder()
-    .setTitle('Blog API')
-    .setDescription('API documentation for the blog backend')
-    .setVersion('1.0')
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'bearer')
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
-    swaggerOptions: { persistAuthorization: true },
-  });
+  // ✅ Validation + filtres globaux
+  app.useGlobalFilters(new HttpExceptionFilter());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    }),
+  );
+
+  // 📘 Swagger (activé uniquement en dev)
+  if (!isProd) {
+    const config = new DocumentBuilder()
+      .setTitle('Blog API')
+      .setDescription('API documentation for the blog backend')
+      .setVersion('1.0')
+      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }, 'bearer')
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document, {
+      swaggerOptions: { persistAuthorization: true },
+    });
+  }
+
+  // 🧠 Hooks d'arrêt propre
+  app.enableShutdownHooks();
 
   const port = process.env.PORT ? Number(process.env.PORT) : 3000;
   const host = process.env.HOST || '0.0.0.0';
+
   await app.listen(port, host);
-  logger.log(`Server listening on http://${host}:${port}`);
+  logger.log(`✅ Server listening on http://${host}:${port}`);
 }
-// Process-level guards
+
+// 🧯 Gestion erreurs process
 process.on('unhandledRejection', (reason: any) => {
   const logger = new Logger('Process');
-  try {
-    logger.error(`[unhandledRejection] ${reason?.message || reason}`, (reason?.stack || undefined) as any);
-  } catch {}
+  logger.error(`[unhandledRejection] ${reason?.message || reason}`, reason?.stack);
 });
 process.on('uncaughtException', (err: any) => {
   const logger = new Logger('Process');
-  try {
-    logger.error(`[uncaughtException] ${err?.message || err}`, (err?.stack || undefined) as any);
-  } catch {}
+  logger.error(`[uncaughtException] ${err?.message || err}`, err?.stack);
 });
 
 bootstrap();

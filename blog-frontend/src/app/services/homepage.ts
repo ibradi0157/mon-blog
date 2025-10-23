@@ -19,6 +19,17 @@ export type FeaturedGridSection = {
   articles?: Article[];
 };
 
+export type FeaturedCarouselSection = {
+  kind: "featuredCarousel";
+  title?: string | null;
+  articleIds: string[];
+  transition?: "slide" | "fade" | "zoom";
+  speed?: number; // milliseconds
+  autoPlay?: boolean;
+  // present on public payload after server resolution
+  articles?: Article[];
+};
+
 export type HtmlSection = { kind: "html"; html: string };
 export type SpacerSection = { kind: "spacer"; size: "sm" | "md" | "lg" };
 export type CtaSection = {
@@ -37,7 +48,7 @@ export type CategoryGridSection = {
   categories?: { id: string; name: string }[];
 };
 
-export type Section = HeroSection | FeaturedGridSection | CategoryGridSection | HtmlSection | SpacerSection | CtaSection;
+export type Section = HeroSection | FeaturedGridSection | FeaturedCarouselSection | CategoryGridSection | HtmlSection | SpacerSection | CtaSection;
 
 export type HomepageConfig = {
   id?: string;

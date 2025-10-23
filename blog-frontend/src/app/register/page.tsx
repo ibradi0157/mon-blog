@@ -2,10 +2,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { registerApi, checkEmailAvailability, requestEmailCode } from "../services/auth";
+import { useAuth } from "../providers/AuthProvider";
 import Link from "next/link";
 import Script from "next/script";
 
 export default function RegisterPage() {
+  const { user } = useAuth();
   // Registration form page – render consistently on server and client
 
   const [email, setEmail] = useState("");
@@ -32,6 +34,21 @@ export default function RegisterPage() {
   };
 
   const allReqsMet = Object.values(passwordReqs).every(Boolean);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      // Redirect to appropriate dashboard based on role
+      const dashboardPath = user.role?.includes('ADMIN')
+        ? '/dashboard'
+        : user.role === 'MEMBER'
+          ? '/member'
+          : user.role === 'SIMPLE_USER'
+            ? '/user'
+            : '/';
+      router.push(dashboardPath);
+    }
+  }, [user, router]);
 
   // Render Google reCAPTCHA v2 checkbox when a site key is present
   useEffect(() => {
@@ -87,9 +104,21 @@ export default function RegisterPage() {
     return () => clearTimeout(timer);
   }, [email, validateEmail]);
 
+  // Show loading state while checking authentication
+  if (user) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
+        <div className="text-center">
+          <div className="w-12 h-12 mx-auto mb-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-slate-600 dark:text-slate-400">Redirection...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[70vh] flex items-center justify-center safe-px py-12 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200/60 dark:border-slate-700/60 bg-white/80 dark:bg-slate-900/60 backdrop-blur shadow-xl p-6">
+      <div className="w-full max-w-md rounded-2xl border border-slate-200/60 dark:border-slate-700/60 bg-white/80 dark:bg-slate-900/80 backdrop-blur shadow-xl p-6">
         <div className="mb-4 text-center">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Créer un compte</h1>
           <p className="text-sm text-slate-600 dark:text-slate-400">Rejoignez la communauté</p>

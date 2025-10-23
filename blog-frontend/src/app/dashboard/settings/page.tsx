@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/app/providers/AuthProvider";
 import {
   Settings, 
   Save, 
@@ -28,9 +30,28 @@ import { toast } from "sonner";
 import { toAbsoluteImageUrl } from "@/app/lib/api";
 
 export default function SettingsPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const logoInputRef = useRef<HTMLInputElement>(null);
   const faviconInputRef = useRef<HTMLInputElement>(null);
+
+  // Redirect if not PRIMARY_ADMIN
+  useEffect(() => {
+    if (user && user.role !== 'PRIMARY_ADMIN') {
+      router.push('/dashboard');
+    }
+  }, [user, router]);
+
+  // Show loading while checking permissions
+  if (!user || user.role !== 'PRIMARY_ADMIN') {
+    return (
+      <div className="p-6 text-center">
+        <div className="w-12 h-12 mx-auto mb-4 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-slate-600 dark:text-slate-400">Vérification des permissions...</p>
+      </div>
+    );
+  }
   
   const settingsQuery = useQuery({
     queryKey: ["admin-site-settings"],

@@ -123,11 +123,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="flex w-full max-w-none">
         {/* Sidebar */}
         <aside
+          style={{ WebkitOverflowScrolling: 'touch' }}
           className={`
             fixed inset-y-0 left-0 z-40 w-80 lg:w-72 lg:translate-x-0 lg:static
             ${sidebarCollapsed ? 'lg:w-16' : 'lg:w-64'}
             transition-transform lg:transition-all duration-300 ease-in-out
-            bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 min-h-screen
+            bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 min-h-screen overflow-y-auto
             ${mobileOpen ? 'translate-x-0 shadow-2xl lg:shadow-none' : '-translate-x-full'}
           `}
           aria-hidden={!mobileOpen}
@@ -255,8 +256,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           />
         )}
 
-        {/* Main Content */}
-        <main className="flex-1 w-full max-w-none min-h-screen relative overflow-x-hidden">
+  {/* Main Content */}
+  <main className="flex-1 w-full max-w-none min-h-screen relative overflow-x-hidden pt-24 md:pt-28">
           {/* Top Bar */}
           <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur border-b border-slate-200/60 dark:border-slate-700/60 px-3 md:px-6 py-4 safe-px supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-slate-800/60">
             <div className="flex items-center justify-between">

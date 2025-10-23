@@ -1,3 +1,4 @@
+# Dockerfile.dev
 # Dockerfile pour le développement avec hot-reload
 FROM node:20-alpine
 
