@@ -94,7 +94,7 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
     }
   }, [isMounted, initial?.id]);
 
-  // Autosave draft (debounced)
+  // Autosave draft (debounced) - Délai augmenté pour éviter ThrottlerException
   useEffect(() => {
     if (!isMounted) return;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -107,11 +107,11 @@ export function ArticleForm({ initial, onSuccess }: { initial?: Partial<Article>
       } catch (e) {
         // ignore storage errors
       }
-    }, 600);
+    }, 2000); // Augmenté de 600ms à 2000ms pour éviter trop de requêtes
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [title, content, isPublished, categoryId, draftKey, isMounted]);
+  }, [title, content, excerpt, isPublished, categoryId, draftKey, isMounted]);
 
   const catsQuery = useQuery({
     queryKey: ["categories"],

@@ -1,14 +1,21 @@
 // src/subscriptions/subscriptions.controller.ts
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RoleName } from '../roles/roles.constants';
 import { SubscriptionsService } from './subscriptions.service';
+import { NotificationService } from './notification.service';
 import { CreateSubscriptionDto, UpdateSubscriptionDto } from './dto/create-subscription.dto';
 import { Subscription } from './subscription.entity';
 
 @Controller('subscriptions')
 @UseGuards(JwtAuthGuard)
 export class SubscriptionsController {
-  constructor(private readonly subscriptionsService: SubscriptionsService) {}
+  constructor(
+    private readonly subscriptionsService: SubscriptionsService,
+    private readonly notificationService: NotificationService,
+  ) {}
 
   @Post()
   async createSubscription(
@@ -102,6 +109,15 @@ export class SubscriptionsController {
   ): Promise<{ message: string }> {
     await this.subscriptionsService.deleteSubscriptionByTarget(req.user.userId, 'category', categoryId);
     return { message: 'Unsubscribed successfully' };
+  }
+
+  // Admin endpoint to manually trigger notification processing
+  @Post('admin/process-notifications')
+  @UseGuards(RolesGuard)
+  @Roles(RoleName.PRIMARY_ADMIN, RoleName.SECONDARY_ADMIN)
+  async processNotifications(): Promise<{ message: string; processed: number }> {
+    await this.notificationService.processNotificationQueue();
+    return { message: 'Notification queue processed', processed: 0 };
   }
 
   // Check if subscribed to category

@@ -258,6 +258,19 @@ export default function RegisterPage() {
           {error && <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>}
           <button className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-2 transition-colors disabled:opacity-60" disabled={!allReqsMet || emailValidation.available === false}>Créer un compte</button>
         </form>
+        
+        {/* Lien vers connexion */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            J'ai déjà un compte
+          </p>
+          <a
+            href="/login"
+            className="mt-2 inline-block text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold transition-colors"
+          >
+            Se connecter →
+          </a>
+        </div>
       </div>
     </div>
   );

@@ -311,6 +311,32 @@ function renderSectionPreview(s: Section, allArticles: Article[], categories: Ca
 
   // Removed stray categoryGrid editor UI from preview; correct preview remains below.
 
+  if (s.kind === "featuredCarousel") {
+    const sc = s as FeaturedCarouselSection;
+    const map = new Map(allArticles.map((a) => [a.id, a] as const));
+    const selected = (sc.articleIds || []).map((id) => map.get(id)).filter(Boolean) as Article[];
+    return (
+      <div>
+        {sc.title && <h3 className="font-semibold mb-3">{sc.title}</h3>}
+        <div className="relative bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg overflow-hidden h-32">
+          <div className="absolute inset-0 flex items-center justify-center text-white">
+            <div className="text-center px-4">
+              <Play className="w-8 h-8 mx-auto mb-2" />
+              <p className="text-sm font-medium">
+                {selected.length > 0 ? `${selected.length} article${selected.length > 1 ? 's' : ''} dans le carousel` : 'Aucun article sélectionné'}
+              </p>
+              {selected.length > 0 && (
+                <p className="text-xs opacity-80 mt-1">
+                  {sc.transition || 'slide'} • {sc.speed || 5000}ms • {sc.autoPlay ? 'Auto' : 'Manuel'}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (s.kind === "featuredGrid") {
     const sg = s as FeaturedGridSection;
     const map = new Map(allArticles.map((a) => [a.id, a] as const));

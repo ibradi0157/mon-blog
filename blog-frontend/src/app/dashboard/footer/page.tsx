@@ -18,6 +18,7 @@ import { getAdminFooter, updateFooter, resetFooter, type FooterData, type Footer
 export default function FooterManagementPage() {
   const qc = useQueryClient();
   const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [isDarkPreview, setIsDarkPreview] = useState(false);
 
   // Fetch current footer data
   const footerQuery = useQuery({
@@ -203,12 +204,27 @@ export default function FooterManagementPage() {
             Aperçu du Footer
           </h3>
           
+          {/* Dark Mode Toggle for Preview */}
+          <div className="mb-4 flex items-center justify-between">
+            <p className="text-sm text-gray-600 dark:text-gray-400">Prévisualisation du footer</p>
+            <button
+              type="button"
+              onClick={() => setIsDarkPreview(!isDarkPreview)}
+              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors flex items-center gap-2"
+            >
+              {isDarkPreview ? '🌙' : '☀️'}
+              <span className="text-sm font-medium">
+                {isDarkPreview ? 'Mode Sombre' : 'Mode Clair'}
+              </span>
+            </button>
+          </div>
+          
           {/* Footer Preview */}
           <div 
-            className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden"
+            className="border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden transition-all duration-300"
             style={{ 
-              backgroundColor: form.backgroundColor,
-              color: form.textColor 
+              backgroundColor: isDarkPreview ? (form.darkBackgroundColor || '#0f172a') : form.backgroundColor,
+              color: isDarkPreview ? (form.darkTextColor || '#e2e8f0') : form.textColor
             }}
           >
             <div className="max-w-7xl mx-auto px-6 py-12">
@@ -442,48 +458,50 @@ export default function FooterManagementPage() {
                 </div>
 
                 {/* Dark Mode Colors */}
-                <div className="mt-4 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg border-2 border-slate-300 dark:border-slate-600">
-                  <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                    🌙 Couleurs Mode Sombre
+                <div className="mt-6 p-5 bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl border-2 border-slate-700 shadow-lg">
+                  <h4 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                    <span className="text-lg">🌙</span>
+                    <span>Couleurs Mode Sombre</span>
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <p className="text-xs text-slate-300 mb-4">Ces couleurs seront appliquées automatiquement lorsque l'utilisateur active le mode sombre</p>
+                  <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Fond (Dark Mode)
+                      <label className="block text-sm font-medium text-slate-200 mb-2">
+                        Couleur de fond
                       </label>
                       <div className="flex items-center space-x-3">
                         <input
                           type="color"
                           value={form.darkBackgroundColor || '#0f172a'}
                           onChange={(e) => setForm(prev => ({ ...prev, darkBackgroundColor: e.target.value }))}
-                          className="w-12 h-10 rounded border border-gray-300 dark:border-gray-600"
+                          className="w-12 h-10 rounded border-2 border-slate-600 cursor-pointer"
                         />
                         <input
                           type="text"
                           value={form.darkBackgroundColor || '#0f172a'}
                           onChange={(e) => setForm(prev => ({ ...prev, darkBackgroundColor: e.target.value }))}
-                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          className="flex-1 px-3 py-2 border-2 border-slate-600 rounded-lg bg-slate-700 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                           placeholder="#0f172a"
                         />
                       </div>
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Texte (Dark Mode)
+                      <label className="block text-sm font-medium text-slate-200 mb-2">
+                        Couleur du texte
                       </label>
                       <div className="flex items-center space-x-3">
                         <input
                           type="color"
                           value={form.darkTextColor || '#e2e8f0'}
                           onChange={(e) => setForm(prev => ({ ...prev, darkTextColor: e.target.value }))}
-                          className="w-12 h-10 rounded border border-gray-300 dark:border-gray-600"
+                          className="w-12 h-10 rounded border-2 border-slate-600 cursor-pointer"
                         />
                         <input
                           type="text"
                           value={form.darkTextColor || '#e2e8f0'}
                           onChange={(e) => setForm(prev => ({ ...prev, darkTextColor: e.target.value }))}
-                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                          className="flex-1 px-3 py-2 border-2 border-slate-600 rounded-lg bg-slate-700 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                           placeholder="#e2e8f0"
                         />
                       </div>

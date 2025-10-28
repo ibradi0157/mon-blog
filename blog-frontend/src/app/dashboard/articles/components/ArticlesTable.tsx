@@ -24,6 +24,9 @@ export function ArticlesTable() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all");
+  const [sortBy, setSortBy] = useState<"createdAt" | "title" | "author">("createdAt");
+  const [sortOrder, setSortOrder] = useState<"ASC" | "DESC">("DESC");
   const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const limit = 10;
   const debouncedSearch = useDebouncedValue(search, 400);
@@ -36,11 +39,38 @@ export function ArticlesTable() {
   }, [view]);
 
   const listQ = useQuery<{ success: boolean; data: Article[]; pagination: { total: number; page: number; limit: number; pages: number } }>({
-    queryKey: ["admin-articles", { page, limit, search: debouncedSearch }],
+    queryKey: ["admin-articles", { page, limit, search: debouncedSearch, status: statusFilter, sort: sortBy, order: sortOrder }],
     queryFn: () => listAdminArticles({ page, limit, search: debouncedSearch || undefined }),
     placeholderData: (prev) => prev,
   });
-  const articles = (listQ.data?.data ?? []) as Article[];
+  
+  const rawArticles = (listQ.data?.data ?? []) as Article[];
+  
+  // Filtrer et trier côté client (en attendant que le backend supporte ces paramètres)
+  let filteredArticles = rawArticles;
+  if (statusFilter === "published") {
+    filteredArticles = filteredArticles.filter(a => a.isPublished);
+  } else if (statusFilter === "draft") {
+    filteredArticles = filteredArticles.filter(a => !a.isPublished);
+  }
+  
+  // Tri côté client
+  filteredArticles = [...filteredArticles].sort((a, b) => {
+    let comparison = 0;
+    if (sortBy === "title") {
+      comparison = a.title.localeCompare(b.title);
+    } else if (sortBy === "author") {
+      const aAuthor = a.author?.displayName || "";
+      const bAuthor = b.author?.displayName || "";
+      comparison = aAuthor.localeCompare(bAuthor);
+    } else { // createdAt
+      const aDate = new Date(a.createdAt || 0).getTime();
+      const bDate = new Date(b.createdAt || 0).getTime();
+      comparison = aDate - bDate;
+    }
+    return sortOrder === "ASC" ? comparison : -comparison;
+  });
+  const articles = filteredArticles;
   const pagination = listQ.data?.pagination ?? { page: 1, pages: 1, total: 0, limit };
   const isBgUpdating = listQ.isFetching && !listQ.isPending;
 
@@ -160,22 +190,56 @@ export function ArticlesTable() {
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-2">
-        <Input
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          placeholder="Rechercher par titre..."
-          className="w-full max-w-md"
-        />
-        {isBgUpdating && (
-          <span className="text-xs opacity-70">Mise à jour…</span>
-        )}
-        <div className="hidden sm:flex items-center gap-1">
-          <Button variant={view === "list" ? "secondary" : "outline"} size="sm" onClick={() => setView("list")}>Liste</Button>
-          <Button variant={view === "grid" ? "secondary" : "outline"} size="sm" onClick={() => setView("grid")}>Grille</Button>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Rechercher par titre..."
+            className="flex-1 min-w-[200px] max-w-md"
+          />
+          
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as any);
+              setPage(1);
+            }}
+            className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-sm"
+          >
+            <option value="all">Tous les statuts</option>
+            <option value="published">Publiés</option>
+            <option value="draft">Brouillons</option>
+          </select>
+          
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-sm"
+          >
+            <option value="createdAt">Trier par date</option>
+            <option value="title">Trier par titre</option>
+            <option value="author">Trier par auteur</option>
+          </select>
+          
+          <button
+            onClick={() => setSortOrder(sortOrder === "ASC" ? "DESC" : "ASC")}
+            className="px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            title={sortOrder === "ASC" ? "Croissant" : "Décroissant"}
+          >
+            {sortOrder === "ASC" ? "↑" : "↓"}
+          </button>
+          
+          {isBgUpdating && (
+            <span className="text-xs opacity-70">Mise à jour…</span>
+          )}
+          <div className="hidden sm:flex items-center gap-1">
+            <Button variant={view === "list" ? "secondary" : "outline"} size="sm" onClick={() => setView("list")}>Liste</Button>
+            <Button variant={view === "grid" ? "secondary" : "outline"} size="sm" onClick={() => setView("grid")}>Grille</Button>
+          </div>
         </div>
       </div>
 
@@ -242,6 +306,7 @@ export function ArticlesTable() {
             <thead className="bg-black/5 dark:bg-white/10 text-left">
               <tr>
                 <th className="p-2">Titre</th>
+                <th className="p-2">Auteur</th>
                 <th className="p-2">Statut</th>
                 <th className="p-2">Créé le</th>
                 <th className="p-2">Stats</th>
@@ -253,6 +318,7 @@ export function ArticlesTable() {
                 Array.from({ length: limit }).map((_, i) => (
                   <tr key={`skeleton-${i}`} className="border-t animate-pulse">
                     <td className="p-2 align-top"><div className="h-4 w-48 bg-black/10 dark:bg-white/10 rounded" /></td>
+                    <td className="p-2 align-top"><div className="h-4 w-32 bg-black/10 dark:bg-white/10 rounded" /></td>
                     <td className="p-2 align-top"><div className="h-4 w-16 bg-black/10 dark:bg-white/10 rounded" /></td>
                     <td className="p-2 align-top"><div className="h-4 w-24 bg-black/10 dark:bg-white/10 rounded" /></td>
                     <td className="p-2 align-top"><div className="h-4 w-40 bg-black/10 dark:bg-white/10 rounded" /></td>
@@ -276,7 +342,7 @@ export function ArticlesTable() {
 
               {!listQ.isPending && articles.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-4 opacity-70">Aucun article trouvé.</td>
+                  <td colSpan={6} className="p-4 opacity-70">Aucun article trouvé.</td>
                 </tr>
               )}
             </tbody>
@@ -363,6 +429,11 @@ function Row({ a, stats, onPublish, onUnpublish, onDelete, loading, statsLoading
         <div className="space-y-1">
           <div className="font-medium line-clamp-2">{a.title}</div>
           <div className="text-xs opacity-70 line-clamp-1">{a.coverUrl ?? "Pas de couverture"}</div>
+        </div>
+      </td>
+      <td className="p-2 align-top">
+        <div className="text-sm">
+          {a.author?.displayName || <span className="opacity-50">Inconnu</span>}
         </div>
       </td>
       <td className="p-2 align-top">

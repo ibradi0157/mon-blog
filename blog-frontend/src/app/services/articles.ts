@@ -16,6 +16,8 @@ export type Article = {
   author?: { id: string; displayName: string; avatarUrl?: string | null } | null;
   likes?: number;
   dislikes?: number;
+  viewCount?: number;
+  commentCount?: number;
 };
 
 export async function listPublicArticles(params?: { page?: number; limit?: number; search?: string; sort?: 'createdAt' | 'likes' | 'dislikes'; order?: 'ASC' | 'DESC'; categoryId?: string }) {

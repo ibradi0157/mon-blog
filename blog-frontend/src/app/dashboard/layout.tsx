@@ -230,10 +230,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {!sidebarCollapsed && (
             <div className="p-4 border-t border-slate-200 dark:border-slate-700 mt-auto">
               <div className="space-y-2">
-                <button className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
-                  <Bell className="w-4 h-4" />
-                  <span>Notifications</span>
-                </button>
                 <Link 
                   href="/"
                   className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
@@ -257,53 +253,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
 
   {/* Main Content */}
-  <main className="flex-1 w-full max-w-none min-h-screen relative overflow-x-hidden pt-24 md:pt-28">
-          {/* Top Bar */}
-          <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur border-b border-slate-200/60 dark:border-slate-700/60 px-3 md:px-6 py-4 safe-px supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-slate-800/60">
+  <main className="flex-1 w-full max-w-none min-h-screen relative overflow-x-hidden">
+          {/* Espace vide en haut */}
+          <div className="h-20" aria-hidden="true"></div>
+          
+          {/* Top Bar avec hamburger */}
+          <header className="px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0">
                 {/* Hamburger */}
                 <button
-                  className="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                  className="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                   onClick={() => setMobileOpen(true)}
                   aria-label="Ouvrir le menu"
                 >
                   <Menu className="w-5 h-5" />
-                </button>
-                <div className="min-w-0">
-                  <h1 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white truncate">
-                    {nav.find(item => 
-                      item.exact 
-                        ? pathname === item.href 
-                        : pathname?.startsWith(item.href) && pathname !== "/dashboard"
-                    )?.label || "Tableau de bord"}
-                  </h1>
-                  <p className="text-sm text-slate-600 dark:text-slate-400 hidden sm:block">
-                    Gérez votre blog depuis cette interface d'administration
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-2 md:space-x-4">
-                {/* Search - Hidden on small screens */}
-                <div className="relative hidden lg:block">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher..."
-                    className="pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-slate-400 w-48 lg:w-64"
-                  />
-                </div>
-                
-                {/* Mobile Search Button */}
-                <button className="lg:hidden p-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
-                  <Search className="w-5 h-5" />
-                </button>
-                
-                {/* Notifications */}
-                <button className="relative p-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
-                  <Bell className="w-5 h-5" />
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
                 </button>
               </div>
             </div>

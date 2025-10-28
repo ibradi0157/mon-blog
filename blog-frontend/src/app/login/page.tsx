@@ -137,6 +137,19 @@ export default function LoginPage() {
             Mot de passe oublié ?
           </button>
         </form>
+        
+        {/* Lien vers inscription */}
+        <div className="mt-6 text-center">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Je suis nouveau sur la plateforme
+          </p>
+          <a
+            href="/register"
+            className="mt-2 inline-block text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-semibold transition-colors"
+          >
+            Créer un compte →
+          </a>
+        </div>
       </div>
     </div>
   );

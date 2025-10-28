@@ -180,29 +180,34 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
         )}
 
   {/* Main Content */}
-  <main className="flex-1 min-h-screen relative pt-24 md:pt-28">
-          {/* Top Bar */}
-          <header className="bg-white/80 dark:bg-slate-800/80 backdrop-blur border-b border-slate-200/60 dark:border-slate-700/60 px-3 md:px-6 py-4 safe-px supports-[backdrop-filter]:bg-white/60 dark:supports-[backdrop-filter]:bg-slate-800/60">
+  <main className="flex-1 min-h-screen relative">
+          {/* Espace vide en haut */}
+          <div className="h-20" aria-hidden="true"></div>
+          
+          {/* Top Bar avec hamburger */}
+          <header className="px-4 py-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0">
                 {/* Hamburger */}
                 <button
-                  className="md:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+                  className="md:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                   onClick={() => setMobileOpen(true)}
                   aria-label="Ouvrir le menu"
                 >
                   <Menu className="w-5 h-5" />
                 </button>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                  {nav.find(item =>
-                    item.exact
-                      ? pathname === item.href
-                      : pathname?.startsWith(item.href) && pathname !== "/member"
-                  )?.label || "Espace membre"}
-                </h1>
-                <p className="text-slate-600 dark:text-slate-400 mt-1">
-                  Gérez vos contenus depuis cet espace
-                </p>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+                    {nav.find(item =>
+                      item.exact
+                        ? pathname === item.href
+                        : pathname?.startsWith(item.href) && pathname !== "/member"
+                    )?.label || "Espace membre"}
+                  </h1>
+                  <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                    Gérez vos contenus depuis cet espace
+                  </p>
+                </div>
               </div>
             </div>
           </header>

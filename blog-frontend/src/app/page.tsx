@@ -181,6 +181,8 @@ export default function Home() {
                 content={article.content}
                 category={article.category}
                 isPublished={article.isPublished}
+                viewCount={article.viewCount}
+                commentCount={article.commentCount}
               />
             ))}
           </div>
@@ -312,6 +314,8 @@ function renderSection(s: Section) {
               content={article.content}
               category={article.category}
               isPublished={article.isPublished}
+              viewCount={article.viewCount}
+              commentCount={article.commentCount}
             />
           ))}
         </div>
@@ -321,6 +325,13 @@ function renderSection(s: Section) {
 
   if (s.kind === "featuredCarousel") {
     const items = s.articles || [];
+    
+    // Debug: log si les articles ne sont pas résolus
+    if (items.length === 0 && s.articleIds && s.articleIds.length > 0) {
+      console.warn('FeaturedCarousel: articleIds présents mais articles non résolus par le backend', s.articleIds);
+      return null;
+    }
+    
     if (items.length === 0) return null;
     
     // Convertir les articles au format attendu par FeaturedArticlesCarousel
@@ -344,9 +355,9 @@ function renderSection(s: Section) {
         {s.title && <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-12 text-center">{s.title}</h2>}
         <FeaturedArticlesCarousel
           articles={carouselArticles}
-          transition={s.transition}
-          speed={s.speed}
-          autoPlay={s.autoPlay}
+          transition={s.transition || "slide"}
+          speed={s.speed || 5000}
+          autoPlay={s.autoPlay !== false}
         />
       </section>
     );

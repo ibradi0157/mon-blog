@@ -1,8 +1,8 @@
 // src/subscriptions/notification.service.ts
 import { Injectable, Logger } from '@nestjs/common';
-// import { Cron, CronExpression } from '@nestjs/schedule';
 import { SubscriptionsService } from './subscriptions.service';
 import { EmailService } from './email.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class NotificationService {
@@ -11,9 +11,10 @@ export class NotificationService {
   constructor(
     private readonly subscriptionsService: SubscriptionsService,
     private readonly emailService: EmailService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
-  // @Cron(CronExpression.EVERY_MINUTE)
+  // Process notification queue (can be called manually or via cron)
   async processNotificationQueue(): Promise<void> {
     try {
       const pendingNotifications = await this.subscriptionsService.getPendingNotifications(10);
@@ -26,6 +27,23 @@ export class NotificationService {
 
       for (const notification of pendingNotifications) {
         try {
+          // Create in-app notification
+          const article = (notification as any).article;
+          const author = article?.author;
+          
+          await this.notificationsService.create({
+            userId: notification.userId,
+            type: 'article_published',
+            title: 'Nouvel article publié',
+            message: `${author?.displayName || 'Un auteur'} a publié un nouvel article : ${article?.title || 'Sans titre'}`,
+            link: `/article/${article?.id}`,
+            payload: {
+              articleId: article?.id,
+              authorId: author?.id,
+            }
+          });
+          
+          // Send email notification
           const success = await this.emailService.sendNotificationEmail(notification);
           
           if (success) {

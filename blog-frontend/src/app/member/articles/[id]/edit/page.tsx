@@ -140,6 +140,21 @@ export default function EditArticlePage() {
                 onChange={(e) => edit.setTitle(e.target.value)}
                 disabled={isPublished}
               />
+              <div>
+                <label className="block text-sm mb-1 text-slate-700 dark:text-slate-300">Résumé (optionnel)</label>
+                <textarea
+                  placeholder="Un court résumé de votre article (affiché dans les cartes d'articles)"
+                  value={edit.excerpt}
+                  onChange={(e) => edit.setExcerpt(e.target.value)}
+                  disabled={isPublished}
+                  className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed resize-none"
+                  rows={3}
+                  maxLength={200}
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  {edit.excerpt.length}/200 caractères
+                </p>
+              </div>
               <Select
                 value={edit.categoryId}
                 onChange={(e) => edit.setCategoryId(e.target.value)}

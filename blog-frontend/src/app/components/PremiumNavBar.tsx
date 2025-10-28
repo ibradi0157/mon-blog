@@ -320,13 +320,21 @@ export function PremiumNavBar() {
                   )}
                 </div>
               ) : (
-                <Link
-                  href="/login"
-                  className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-300 hover:-translate-y-0.5"
-                >
-                  <User className="w-4 h-4" />
-                  Connexion
-                </Link>
+                <div className="hidden md:flex items-center gap-2">
+                  <Link
+                    href="/login"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-300 hover:-translate-y-0.5"
+                  >
+                    <User className="w-4 h-4" />
+                    Connexion
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="flex items-center gap-2 px-5 py-2.5 border-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 font-semibold rounded-xl transition-all duration-300 hover:-translate-y-0.5"
+                  >
+                    S'inscrire
+                  </Link>
+                </div>
               )}
 
               {/* Mobile Menu Toggle */}
@@ -428,7 +436,10 @@ export function PremiumNavBar() {
             className="fixed inset-y-0 right-0 w-full max-w-sm bg-white dark:bg-slate-900 shadow-2xl animate-in slide-in-from-right duration-300 overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6 pt-8 space-y-4">
+            {/* Espace vide en haut du menu */}
+            <div className="h-20" aria-hidden="true"></div>
+            
+            <div className="p-6 pt-4 space-y-4">
               <Link href="/" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
                 <Home className="w-5 h-5" />
                 <span className="font-semibold">Accueil</span>

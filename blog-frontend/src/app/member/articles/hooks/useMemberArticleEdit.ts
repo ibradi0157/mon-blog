@@ -24,6 +24,7 @@ export function useMemberArticleEdit({ id, article }: UseMemberArticleEditOption
   const [title, setTitle] = useState("");
   const [categoryId, setCategoryId] = useState<string | "">("");
   const [content, setContent] = useState("");
+  const [excerpt, setExcerpt] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -35,6 +36,7 @@ export function useMemberArticleEdit({ id, article }: UseMemberArticleEditOption
     initializedRef.current = false;
     setTitle("");
     setContent("");
+    setExcerpt("");
     setCategoryId("");
     setErrorMessage(null);
   }, [id]);
@@ -44,6 +46,7 @@ export function useMemberArticleEdit({ id, article }: UseMemberArticleEditOption
     if (!article || initializedRef.current) return;
     setTitle(article.title || "");
     setContent(article.content || "");
+    setExcerpt(article.excerpt || "");
     setCategoryId(article?.category?.id || "");
     lastSavedRef.current = {
       title: article.title || "",
@@ -57,7 +60,7 @@ export function useMemberArticleEdit({ id, article }: UseMemberArticleEditOption
 
   // Mutations
   const mUpdate = useMutation({
-    mutationFn: () => updateArticle(id, { title, content, categoryId: categoryId || null }),
+    mutationFn: () => updateArticle(id, { title, content, excerpt: excerpt || null, categoryId: categoryId || null }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["article", id] });
     },
@@ -215,13 +218,13 @@ export function useMemberArticleEdit({ id, article }: UseMemberArticleEditOption
         await mUpdate.mutateAsync();
         lastSavedRef.current = { title, content, categoryId };
       } catch (_) {}
-    }, 800);
+    }, 3000); // Augmenté de 800ms à 3000ms pour éviter ThrottlerException
 
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, content, categoryId, isPublished, article?.id]);
+  }, [title, content, excerpt, categoryId, isPublished, article?.id]);
 
   const publish = () => mPublish.mutate();
   const unpublish = () => mUnpublish.mutate();
@@ -251,6 +254,7 @@ export function useMemberArticleEdit({ id, article }: UseMemberArticleEditOption
     title, setTitle,
     categoryId, setCategoryId,
     content, setContent,
+    excerpt, setExcerpt,
     isPublished,
     errorMessage, setErrorMessage,
     // actions

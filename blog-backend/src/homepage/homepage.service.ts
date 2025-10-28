@@ -79,12 +79,12 @@ export class HomepageService {
     let resolvedSections: any[] | null = null;
     const rawSections = cfg.sections ?? null;
     if (Array.isArray(rawSections) && rawSections.length > 0) {
-      // Collect unique article IDs across all featuredGrid sections
+      // Collect unique article IDs across all featuredGrid and featuredCarousel sections
       const wantedArticleIds: string[] = [];
       // Collect unique category IDs across all categoryGrid sections
       const wantedCategoryIds: string[] = [];
       for (const s of rawSections) {
-        if (s && s.kind === 'featuredGrid' && Array.isArray(s.articleIds)) {
+        if (s && (s.kind === 'featuredGrid' || s.kind === 'featuredCarousel') && Array.isArray(s.articleIds)) {
           for (const id of s.articleIds) {
             if (typeof id === 'string' && !wantedArticleIds.includes(id)) wantedArticleIds.push(id);
           }
@@ -124,6 +124,10 @@ export class HomepageService {
 
       resolvedSections = rawSections.map((s) => {
         if (s && s.kind === 'featuredGrid' && Array.isArray(s.articleIds)) {
+          const articles = s.articleIds.map((id: string) => mapArticles.get(id)).filter(Boolean);
+          return { ...s, articles };
+        }
+        if (s && s.kind === 'featuredCarousel' && Array.isArray(s.articleIds)) {
           const articles = s.articleIds.map((id: string) => mapArticles.get(id)).filter(Boolean);
           return { ...s, articles };
         }

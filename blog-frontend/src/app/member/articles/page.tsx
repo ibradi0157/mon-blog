@@ -224,6 +224,11 @@ function MemberArticlesPageClient() {
                       {a.isPublished ? <Badge variant="success">Publié</Badge> : <Badge variant="muted">Brouillon</Badge>}
                     </div>
                     <p className="text-sm opacity-70 truncate max-w-[60ch]">{a.content?.replace(/<[^>]+>/g, "").slice(0, 160)}</p>
+                    {a.createdAt && (
+                      <p className="text-xs opacity-60">
+                        Publié le {new Date(a.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })} à {new Date(a.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    )}
                     <div className="flex flex-wrap gap-2">
                       {!a.isPublished && (
                         <Link href={`/member/articles/${a.id}/edit`} className="px-3 py-1.5 rounded border hover:bg-black/5">Modifier</Link>
@@ -256,6 +261,11 @@ function MemberArticlesPageClient() {
                           {a.isPublished ? <Badge variant="success">Publié</Badge> : <Badge variant="muted">Brouillon</Badge>}
                         </div>
                         <p className="text-sm opacity-70 truncate max-w-[60ch]">{a.content?.replace(/<[^>]+>/g, "").slice(0, 160)}</p>
+                        {a.createdAt && (
+                          <p className="text-xs opacity-60">
+                            Publié le {new Date(a.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })} à {new Date(a.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         {!a.isPublished && (
@@ -294,6 +304,11 @@ function MemberArticlesPageClient() {
                           {a.isPublished ? <Badge variant="success">Publié</Badge> : <Badge variant="muted">Brouillon</Badge>}
                         </div>
                         <p className="text-xs opacity-70 line-clamp-2">{a.content?.replace(/<[^>]+>/g, "").slice(0, 200)}</p>
+                        {a.createdAt && (
+                          <p className="text-xs opacity-60">
+                            Publié le {new Date(a.createdAt).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })} à {new Date(a.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        )}
                         <div className="flex flex-wrap gap-2 mt-auto">
                           {!a.isPublished && (
                             <Link href={`/member/articles/${a.id}/edit`} className="px-2 py-1 rounded border">Modifier</Link>

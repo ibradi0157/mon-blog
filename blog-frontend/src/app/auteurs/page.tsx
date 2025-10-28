@@ -31,9 +31,36 @@ export default function AuthorsPage() {
   const authorsQ = useQuery({
     queryKey: ['public-authors'],
     queryFn: getPublicAuthors,
+    retry: 2,
+    retryDelay: 1000,
   });
 
   const authors = authorsQ.data?.data || [];
+  
+  // Afficher l'erreur si présente
+  if (authorsQ.isError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
+        <div className="text-center max-w-md mx-auto px-4">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Users className="w-8 h-8 text-red-600 dark:text-red-400" />
+          </div>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+            Erreur de chargement
+          </h2>
+          <p className="text-slate-600 dark:text-slate-400 mb-6">
+            Impossible de charger la liste des auteurs. Veuillez réessayer plus tard.
+          </p>
+          <button
+            onClick={() => authorsQ.refetch()}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold transition-colors"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Filter and sort
   const filteredAuthors = authors

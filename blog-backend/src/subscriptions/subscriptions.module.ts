@@ -13,6 +13,7 @@ import { EmailService } from './email.service';
 import { NotificationService } from './notification.service';
 import { SiteSettingsModule } from '../site-settings/site-settings.module';
 import { EmailTemplatesModule } from '../email-templates/email-templates.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { EmailTemplatesModule } from '../email-templates/email-templates.module'
     ConfigModule,
     SiteSettingsModule,
     EmailTemplatesModule,
+    NotificationsModule,
   ],
   controllers: [SubscriptionsController],
   providers: [SubscriptionsService, EmailService, NotificationService],

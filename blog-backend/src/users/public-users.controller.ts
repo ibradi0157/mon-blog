@@ -32,7 +32,7 @@ export class PublicUsersController {
       .where('article.id IS NOT NULL')
       .groupBy('user.id')
       .having('COUNT(DISTINCT article.id) > 0')
-      .orderBy('articlesCount', 'DESC')
+      .orderBy('"articlesCount"', 'DESC')
       .getRawMany();
 
     // Get total views for each author

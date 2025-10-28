@@ -76,13 +76,17 @@ export class ArticlesService {
     
     return articles.map(article => {
       const s = statsMap.get(article.id);
+      const viewsCount = s?.views || 0;
+      const commentsTotal = s?.commentsCount || 0;
       return {
         ...article,
         author: authorsMap.get(article.authorId) || null,
         likes: s?.likes || 0,
         dislikes: s?.dislikes || 0,
-        views: s?.views || 0,
-        commentsCount: s?.commentsCount || 0,
+        views: viewsCount,
+        viewCount: viewsCount, // Alias pour compatibilité frontend
+        commentsCount: commentsTotal,
+        commentCount: commentsTotal, // Alias pour compatibilité frontend
       };
     });
   }
